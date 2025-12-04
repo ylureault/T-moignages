@@ -60,6 +60,23 @@
       </div>
     </div>
 
+    <div class="settings-section">
+      <h2>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+        Notifications
+      </h2>
+      <p class="section-hint">Recevez une notification par email à chaque nouveau témoignage.</p>
+
+      <div class="form-group">
+        <label for="notification_email">Email de notification</label>
+        <input type="email" id="notification_email" name="notification_email" value="{{notification_email}}" placeholder="contact@insuffle.com">
+        <span class="form-hint">Adresse où recevoir les notifications de nouveaux témoignages</span>
+      </div>
+    </div>
+
     <div class="form-actions">
       <button type="submit" class="btn btn-primary">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -109,7 +126,8 @@ document.getElementById('settingsForm').addEventListener('submit', async functio
     smtp_user: document.getElementById('smtp_user').value,
     smtp_pass: document.getElementById('smtp_pass').value,
     from_email: document.getElementById('from_email').value,
-    from_name: document.getElementById('from_name').value
+    from_name: document.getElementById('from_name').value,
+    notification_email: document.getElementById('notification_email').value
   };
 
   try {

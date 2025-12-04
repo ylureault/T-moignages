@@ -642,14 +642,15 @@ router.get('/settings', requireAuth, (req, res) => {
     .replace('{{smtp_user}}', settings.smtp_user || '')
     .replace('{{smtp_pass}}', settings.smtp_pass || '')
     .replace('{{from_email}}', settings.from_email || 'contact@insuffle.com')
-    .replace('{{from_name}}', settings.from_name || 'Insuffle');
+    .replace('{{from_name}}', settings.from_name || 'Insuffle')
+    .replace('{{notification_email}}', settings.notification_email || 'contact@insuffle.com');
 
   res.send(renderAdminPage(content, 'settings'));
 });
 
 // POST /admin/settings
 router.post('/settings', requireAuth, express.json(), (req, res) => {
-  const { smtp_host, smtp_port, smtp_user, smtp_pass, from_email, from_name } = req.body;
+  const { smtp_host, smtp_port, smtp_user, smtp_pass, from_email, from_name, notification_email } = req.body;
 
   try {
     if (smtp_host) setSetting('smtp_host', smtp_host);
@@ -658,6 +659,7 @@ router.post('/settings', requireAuth, express.json(), (req, res) => {
     if (smtp_pass) setSetting('smtp_pass', smtp_pass);
     if (from_email) setSetting('from_email', from_email);
     if (from_name) setSetting('from_name', from_name);
+    if (notification_email) setSetting('notification_email', notification_email);
 
     res.json({ success: true });
   } catch (error) {

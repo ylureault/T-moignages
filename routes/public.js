@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../utils/db');
+const { db, getSetting } = require('../utils/db');
 const { sendEmail } = require('../utils/email');
 const fs = require('fs');
 const path = require('path');
@@ -80,7 +80,8 @@ router.post('/:slug', express.urlencoded({ extended: true }), async (req, res) =
       contactTopics
     );
 
-    // Send notification email to contact@insuffle.com
+    // Send notification email
+    const notificationEmail = getSetting('notification_email') || 'contact@insuffle.com';
     const notificationHtml = generateNotificationEmail({
       firstname,
       lastname,
@@ -95,7 +96,7 @@ router.post('/:slug', express.urlencoded({ extended: true }), async (req, res) =
     });
 
     sendEmail(
-      'contact@insuffle.com',
+      notificationEmail,
       `Nouveau témoignage de ${firstname} ${lastname} - ${campaign.name}`,
       notificationHtml
     ).catch(err => console.error('Error sending notification:', err));
