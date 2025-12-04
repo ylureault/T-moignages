@@ -1,0 +1,387 @@
+{
+  "name": "Boussole 4C - Questionnaire Design System",
+  "version": "1.0.0",
+  "description": "Design system complet pour le système de questions, réponses et transitions",
+  "questionTypes": {
+    "multiple_choice": {
+      "description": "Questions à choix unique avec options visuelles",
+      "autoAdvance": true,
+      "advanceDelay": 800
+    },
+    "slider": {
+      "description": "Questions avec échelle numérique cliquable (0-10)",
+      "autoAdvance": true,
+      "advanceDelay": 800
+    },
+    "ranking": {
+      "description": "Questions de classement par ordre d'importance",
+      "autoAdvance": true,
+      "advanceDelay": 1000
+    },
+    "number_input": {
+      "description": "Input numérique avec boutons +/-",
+      "autoAdvance": false,
+      "requiresValidation": true
+    },
+    "text_input": {
+      "description": "Input texte libre",
+      "autoAdvance": false,
+      "requiresValidation": true
+    }
+  },
+  "components": {
+    "questionCard": {
+      "container": "animate-fadeIn",
+      "title": "text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 mb-4 leading-tight",
+      "example": {
+        "wrapper": "flex items-start gap-3 text-slate-500 text-sm sm:text-base leading-relaxed bg-gradient-to-r from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200",
+        "icon": "w-5 h-5 flex-shrink-0 mt-0.5 text-slate-400"
+      },
+      "footer": "flex items-center justify-between pt-6 border-t border-slate-100"
+    },
+    "multipleChoice": {
+      "grid": {
+        "two": "grid-cols-2",
+        "three": "grid-cols-3",
+        "four": "grid-cols-2",
+        "gap": "gap-4"
+      },
+      "option": {
+        "base": "relative p-6 rounded-2xl border-3 transition-all duration-300 text-center group",
+        "default": "border-slate-200 bg-white hover:border-teal-300 hover:shadow-lg hover:scale-[1.01]",
+        "selected": "border-teal-500 bg-gradient-to-br from-teal-50 to-cyan-50 shadow-xl shadow-teal-500/30 scale-[1.02]",
+        "justClicked": "animate-bounce"
+      },
+      "checkBadge": {
+        "container": "absolute -top-3 -right-3 w-10 h-10 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-full flex items-center justify-center shadow-lg",
+        "icon": "w-6 h-6 text-white",
+        "animation": "animate-ping"
+      },
+      "validationOverlay": {
+        "wrapper": "absolute inset-0 flex items-center justify-center bg-teal-500/90 rounded-2xl",
+        "text": "text-white font-bold text-lg"
+      },
+      "letterBadge": {
+        "default": "flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-bold bg-slate-100 text-slate-500",
+        "selected": "bg-gradient-to-br from-teal-500 to-cyan-500 text-white"
+      },
+      "icons": [
+        "🎯",
+        "⚡",
+        "🔥",
+        "💎"
+      ],
+      "instruction": "text-center text-sm text-slate-400 mt-2"
+    },
+    "slider": {
+      "labels": {
+        "wrapper": "flex justify-between text-sm font-medium",
+        "text": "text-slate-500 max-w-[40%]"
+      },
+      "bigNumber": {
+        "wrapper": "text-center py-6 relative",
+        "inactive": "scale-90 opacity-50",
+        "active": "scale-100 opacity-100",
+        "clicked": "scale-110",
+        "number": "text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-cyan-500"
+      },
+      "buttons": {
+        "wrapper": "flex justify-between gap-1 sm:gap-2",
+        "button": {
+          "base": "flex-1 py-3 sm:py-4 rounded-xl text-sm sm:text-base font-bold transition-all duration-200",
+          "default": "bg-slate-100 text-slate-600 hover:bg-teal-100 hover:text-teal-700 hover:scale-105",
+          "selected": "bg-gradient-to-br from-teal-500 to-cyan-500 text-white shadow-lg shadow-teal-500/40 scale-110 z-10"
+        }
+      },
+      "stars": {
+        "wrapper": "flex justify-center gap-1 pt-2",
+        "filled": "text-amber-400",
+        "empty": "text-slate-300"
+      },
+      "validationBadge": "absolute top-0 right-1/4 bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-4 py-2 rounded-full text-sm font-bold animate-bounce shadow-lg"
+    },
+    "ranking": {
+      "header": {
+        "wrapper": "flex items-center justify-between",
+        "instruction": "text-sm text-slate-500 flex items-center gap-2",
+        "reset": "text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
+      },
+      "item": {
+        "base": "flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left",
+        "default": "border-slate-200 bg-white hover:border-teal-300 hover:bg-teal-50/30",
+        "selected": "border-teal-500 bg-gradient-to-r from-teal-50 to-cyan-50 shadow-md"
+      },
+      "rankBadge": {
+        "base": "flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center font-bold text-xl transition-all",
+        "default": "bg-slate-100 text-slate-400",
+        "selected": "bg-gradient-to-br from-teal-500 to-cyan-500 text-white shadow-lg"
+      },
+      "trophyColors": {
+        "1": "text-amber-500",
+        "2": "text-slate-400",
+        "3": "text-amber-700"
+      },
+      "progress": {
+        "wrapper": "flex items-center justify-center gap-2 py-3",
+        "dot": {
+          "base": "w-3 h-3 rounded-full transition-all",
+          "active": "bg-teal-500 scale-110",
+          "inactive": "bg-slate-200"
+        },
+        "completeBadge": "flex items-center gap-3 px-6 py-3 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold shadow-lg animate-bounce"
+      }
+    },
+    "numberInput": {
+      "wrapper": "flex items-center justify-center gap-4 sm:gap-6",
+      "decrementButton": "w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all hover:scale-105 active:scale-95",
+      "incrementButton": "w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-teal-500 hover:bg-teal-600 flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-lg shadow-teal-500/30",
+      "input": "w-28 sm:w-32 text-center text-5xl sm:text-6xl font-black text-teal-600 bg-transparent border-none outline-none",
+      "quickValues": {
+        "wrapper": "flex justify-center gap-2 mt-6",
+        "button": {
+          "base": "px-4 py-2 rounded-lg text-sm font-semibold transition-all",
+          "default": "bg-slate-100 text-slate-600 hover:bg-slate-200",
+          "selected": "bg-teal-500 text-white shadow-md"
+        },
+        "values": [
+          1,
+          3,
+          5,
+          10,
+          20
+        ]
+      }
+    },
+    "textInput": {
+      "input": "w-full text-center text-2xl sm:text-3xl font-bold p-6 rounded-2xl border-2 border-slate-200 focus:border-teal-500 focus:ring-4 focus:ring-teal-100 outline-none transition-all bg-white placeholder:text-slate-300"
+    },
+    "validateButton": {
+      "base": "flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-bold rounded-xl shadow-lg shadow-teal-500/30",
+      "hover": "hover:shadow-xl hover:scale-[1.02] transition-all"
+    },
+    "navigationButton": {
+      "back": {
+        "base": "flex items-center gap-2 px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all",
+        "enabled": "text-slate-600 hover:bg-slate-100",
+        "disabled": "text-slate-300 cursor-not-allowed"
+      },
+      "next": {
+        "base": "flex items-center gap-2 px-6 sm:px-8 py-4 rounded-xl font-bold transition-all",
+        "enabled": "bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:from-teal-600 hover:to-cyan-600 shadow-lg shadow-teal-500/30 hover:shadow-xl hover:scale-[1.02]"
+      }
+    }
+  },
+  "axisTransition": {
+    "container": "min-h-[60vh] flex items-center justify-center p-6 sm:p-8",
+    "content": "text-center max-w-lg animate-fadeIn",
+    "completeBadge": "inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-medium",
+    "axisIcon": {
+      "container": "w-24 h-24 mx-auto mb-8 rounded-3xl flex items-center justify-center shadow-2xl",
+      "icon": "w-12 h-12 text-white"
+    },
+    "title": "text-3xl sm:text-4xl font-black text-slate-900 mb-4",
+    "description": "text-base sm:text-lg text-slate-600 mb-8 leading-relaxed",
+    "startButton": "inline-flex items-center gap-3 px-8 sm:px-10 py-4 rounded-2xl font-bold text-white shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all",
+    "info": "mt-6 text-sm text-slate-400"
+  },
+  "axisProgress": {
+    "container": "flex items-center gap-1",
+    "bar": {
+      "wrapper": "relative transition-transform",
+      "active": "scale-110",
+      "track": "w-10 h-2 rounded-full overflow-hidden",
+      "trackComplete": "bg-teal-200",
+      "trackIncomplete": "bg-slate-200",
+      "fill": "h-full rounded-full transition-all duration-300",
+      "fillActive": "bg-teal-500",
+      "fillComplete": "bg-teal-400",
+      "fillIncomplete": "bg-slate-300"
+    },
+    "separator": {
+      "complete": "w-1 h-1 rounded-full mx-1 bg-teal-400",
+      "incomplete": "w-1 h-1 rounded-full mx-1 bg-slate-300"
+    }
+  },
+  "introScreen": {
+    "background": "min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 relative overflow-hidden",
+    "decorativeBlobs": [
+      "absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-teal-500/20 rounded-full blur-[150px] animate-pulse",
+      "absolute bottom-[-30%] right-[-10%] w-[700px] h-[700px] bg-cyan-500/15 rounded-full blur-[180px] animate-pulse"
+    ],
+    "content": "relative z-10 min-h-screen flex items-center justify-center px-4",
+    "container": "max-w-2xl mx-auto text-center",
+    "logo": "inline-flex items-center gap-3 mb-8",
+    "stats": {
+      "grid": "grid grid-cols-3 gap-4 mb-10",
+      "card": "bg-white/10 backdrop-blur-sm rounded-xl p-4",
+      "number": "text-3xl font-black text-white mb-1",
+      "label": "text-sm text-white/60"
+    },
+    "warning": "bg-amber-500/20 border border-amber-500/30 rounded-xl p-4 mb-8 text-amber-200 text-sm",
+    "cta": "inline-flex items-center gap-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-white font-bold px-10 py-5 rounded-2xl shadow-2xl shadow-teal-500/30 hover:shadow-teal-500/50 transform hover:-translate-y-1 transition-all text-xl",
+    "disclaimer": "text-white/40 text-sm mt-6"
+  },
+  "questionScreen": {
+    "header": {
+      "fixed": "fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-b border-slate-200 shadow-sm",
+      "container": "max-w-3xl mx-auto px-4 py-4",
+      "row": "flex items-center justify-between mb-3"
+    },
+    "main": "pt-36 pb-12 px-4",
+    "content": "max-w-3xl mx-auto"
+  },
+  "hierarchyVisualization": {
+    "viewBox": "0 0 200 120",
+    "size": "w-full max-w-[200px] mx-auto mb-4",
+    "colors": {
+      "optimal": "#14b8a6",
+      "moderate": "#f59e0b",
+      "deep": "#f97316",
+      "excessive": "#ef4444",
+      "inactive": "#e2e8f0"
+    },
+    "levels": {
+      "you": {
+        "x": 75,
+        "y": 5,
+        "width": 50,
+        "height": 20
+      },
+      "n1": {
+        "x": 60,
+        "y": 30,
+        "width": 80,
+        "height": 16
+      },
+      "n2": [
+        {
+          "x": 40,
+          "y": 51,
+          "width": 50,
+          "height": 14
+        },
+        {
+          "x": 110,
+          "y": 51,
+          "width": 50,
+          "height": 14
+        }
+      ],
+      "n3": [
+        {
+          "x": 30,
+          "y": 70,
+          "width": 30,
+          "height": 12
+        },
+        {
+          "x": 65,
+          "y": 70,
+          "width": 30,
+          "height": 12
+        },
+        {
+          "x": 105,
+          "y": 70,
+          "width": 30,
+          "height": 12
+        },
+        {
+          "x": 140,
+          "y": 70,
+          "width": 30,
+          "height": 12
+        }
+      ],
+      "terrain": [
+        {
+          "x": 10,
+          "y": 88,
+          "width": 180,
+          "height": 10,
+          "opacity": 0.7
+        },
+        {
+          "x": 10,
+          "y": 102,
+          "width": 180,
+          "height": 10,
+          "opacity": 0.5
+        }
+      ]
+    }
+  },
+  "animations": {
+    "fadeIn": {
+      "class": "animate-fadeIn",
+      "css": {
+        "from": {
+          "opacity": 0,
+          "transform": "translateY(8px)"
+        },
+        "to": {
+          "opacity": 1,
+          "transform": "translateY(0)"
+        }
+      }
+    },
+    "clickFeedback": {
+      "bounce": "animate-bounce",
+      "duration": "600ms"
+    },
+    "autoAdvance": {
+      "defaultDelay": 800,
+      "rankingDelay": 1000
+    },
+    "transitions": {
+      "option": "transition-all duration-300",
+      "slider": "transition-all duration-200",
+      "entry": "transition-all duration-500"
+    }
+  },
+  "svgIcons": {
+    "check": "M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z",
+    "chevronLeft": "M15 19l-7-7 7-7",
+    "chevronRight": "M9 5l7 7-7 7",
+    "arrowRight": "M13 7l5 5m0 0l-5 5m5-5H6",
+    "minus": "M20 12H4",
+    "plus": "M12 4v16m8-8H4",
+    "hand": "M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11",
+    "refresh": "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15",
+    "info": "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+    "close": "M6 18L18 6M6 6l12 12",
+    "trophy": "M5 5a3 3 0 015-2.236A3 3 0 0114.83 6H16a2 2 0 110 4h-1a1 1 0 00-1 1v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4a1 1 0 00-1-1H4a2 2 0 110-4h1.17A3 3 0 015 5zm5-1a1 1 0 00-1 1v1a1 1 0 002 0V5a1 1 0 00-1-1z",
+    "axisIcons": {
+      "cap": "M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7",
+      "contraintes": "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z",
+      "capacites": "M13 10V3L4 14h7v7l9-11h-7z",
+      "cadence": "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+    }
+  },
+  "axes": {
+    "cap": {
+      "label": "CAP",
+      "color": "#3b82f6",
+      "gradient": "from-blue-500 to-indigo-600",
+      "description": "Votre direction est-elle claire ? Vos équipes comprennent-elles où vous allez ? Mesurez l'alignement stratégique de votre organisation."
+    },
+    "contraintes": {
+      "label": "CONTRAINTES",
+      "color": "#f59e0b",
+      "gradient": "from-amber-500 to-orange-600",
+      "description": "Qu'est-ce qui vous freine vraiment ? Bureaucratie, culture, conflits... Identifions les blocages invisibles de votre organisation."
+    },
+    "capacites": {
+      "label": "CAPACITÉS",
+      "color": "#10b981",
+      "gradient": "from-emerald-500 to-teal-600",
+      "description": "Avez-vous les moyens de vos ambitions ? Finances, compétences, outils... Évaluons votre potentiel réel."
+    },
+    "cadence": {
+      "label": "CADENCE",
+      "color": "#8b5cf6",
+      "gradient": "from-violet-500 to-purple-600",
+      "description": "Votre rythme est-il soutenable ? Êtes-vous en surchauffe ? Mesurons la santé de votre tempo organisationnel."
+    }
+  }
+}

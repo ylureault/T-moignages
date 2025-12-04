@@ -1,0 +1,206 @@
+{
+  "name": "Boussole 4C - Admin Design System",
+  "version": "1.0.0",
+  "description": "Design system complet pour l'interface d'administration",
+  "colors": {
+    "background": {
+      "main": "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950",
+      "sidebar": "bg-slate-900/50 backdrop-blur-xl",
+      "card": "bg-slate-800/50 backdrop-blur-sm",
+      "input": "bg-slate-900/50",
+      "hover": "bg-slate-800/50"
+    },
+    "brand": {
+      "primary": {
+        "gradient": "bg-gradient-to-r from-teal-500 to-teal-600",
+        "hover": "from-teal-400 to-teal-500",
+        "solid": "#14b8a6",
+        "light": "teal-500/20",
+        "shadow": "shadow-teal-500/20"
+      },
+      "logo": "bg-gradient-to-br from-teal-400 to-teal-600"
+    },
+    "text": {
+      "primary": "text-white",
+      "secondary": "text-slate-400",
+      "muted": "text-slate-500",
+      "link": "text-teal-400"
+    },
+    "border": {
+      "default": "border-slate-700/50",
+      "hover": "border-teal-500/20",
+      "active": "border-teal-500"
+    },
+    "status": {
+      "success": {
+        "bg": "bg-emerald-500/20",
+        "border": "border-emerald-500/30",
+        "text": "text-emerald-300"
+      },
+      "error": {
+        "bg": "bg-red-500/20",
+        "border": "border-red-500/30",
+        "text": "text-red-300"
+      },
+      "warning": {
+        "bg": "bg-amber-500/20",
+        "border": "border-amber-500/30",
+        "text": "text-amber-300"
+      },
+      "info": {
+        "bg": "bg-blue-500/10",
+        "border": "border-blue-500/20",
+        "text": "text-blue-400"
+      }
+    }
+  },
+  "typography": {
+    "headings": {
+      "h1": "text-3xl font-bold text-white",
+      "h2": "text-lg font-semibold text-white",
+      "h3": "text-base font-medium text-white"
+    },
+    "body": {
+      "default": "text-slate-300",
+      "small": "text-sm text-slate-400",
+      "tiny": "text-xs text-slate-500"
+    },
+    "labels": {
+      "form": "text-sm font-medium text-slate-300 mb-2",
+      "uppercase": "text-xs font-semibold text-slate-500 uppercase tracking-wider"
+    }
+  },
+  "spacing": {
+    "page": "p-8",
+    "section": "mb-8",
+    "card": "p-6",
+    "cardLarge": "p-8",
+    "gap": {
+      "small": "gap-2",
+      "default": "gap-4",
+      "large": "gap-6"
+    }
+  },
+  "borderRadius": {
+    "small": "rounded-lg",
+    "default": "rounded-xl",
+    "large": "rounded-2xl",
+    "full": "rounded-full"
+  },
+  "shadows": {
+    "card": "shadow-lg",
+    "button": "shadow-lg shadow-teal-500/20",
+    "buttonHover": "shadow-teal-500/30"
+  },
+  "components": {
+    "sidebar": {
+      "width": {
+        "expanded": "w-72",
+        "collapsed": "w-20"
+      },
+      "transition": "transition-all duration-300 ease-in-out",
+      "border": "border-r border-slate-800/50"
+    },
+    "navItem": {
+      "default": "flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 text-slate-400 hover:bg-slate-800/50 hover:text-white",
+      "active": "bg-gradient-to-r from-teal-500/20 to-teal-600/10 text-teal-400 border border-teal-500/20",
+      "iconHover": "group-hover:scale-110 transition-transform"
+    },
+    "card": {
+      "base": "bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50",
+      "padding": "p-6",
+      "header": "flex items-center gap-3 mb-6"
+    },
+    "button": {
+      "primary": {
+        "base": "px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-semibold rounded-xl shadow-lg shadow-teal-500/30 transition-all",
+        "hover": "hover:from-teal-400 hover:to-cyan-400 hover:shadow-teal-500/40",
+        "disabled": "disabled:opacity-50 disabled:cursor-not-allowed"
+      },
+      "secondary": {
+        "base": "px-4 py-2 bg-slate-800/50 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors"
+      },
+      "danger": {
+        "base": "text-red-400 hover:bg-red-500/10 transition-all"
+      },
+      "icon": {
+        "size": "w-10 h-10 rounded-xl flex items-center justify-center"
+      }
+    },
+    "input": {
+      "base": "w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white outline-none transition-all",
+      "focus": "focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20",
+      "disabled": "disabled:text-slate-400 disabled:cursor-not-allowed",
+      "placeholder": "placeholder:text-slate-500"
+    },
+    "table": {
+      "header": "text-xs font-semibold text-slate-400 uppercase tracking-wider",
+      "row": "border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors",
+      "cell": "px-4 py-4"
+    },
+    "badge": {
+      "success": "bg-emerald-500/20 text-emerald-400 px-3 py-1 text-xs font-medium rounded-lg",
+      "warning": "bg-amber-500/20 text-amber-400 px-3 py-1 text-xs font-medium rounded-lg",
+      "error": "bg-red-500/20 text-red-400 px-3 py-1 text-xs font-medium rounded-lg",
+      "info": "bg-blue-500/20 text-blue-400 px-3 py-1 text-xs font-medium rounded-lg"
+    },
+    "iconBox": {
+      "colors": {
+        "blue": "w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center",
+        "purple": "w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center",
+        "amber": "w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center",
+        "teal": "w-10 h-10 bg-teal-500/20 rounded-xl flex items-center justify-center"
+      }
+    }
+  },
+  "animations": {
+    "loader": {
+      "spinner": "animate-spin h-16 w-16 border-4 border-teal-500/30 border-t-teal-500 rounded-full",
+      "pulse": "animate-pulse"
+    },
+    "transitions": {
+      "default": "transition-all duration-200",
+      "slow": "transition-all duration-300",
+      "sidebar": "transition-all duration-300 ease-in-out"
+    },
+    "hover": {
+      "scale": "hover:scale-105",
+      "scaleSmall": "hover:scale-[1.02]",
+      "lift": "hover:-translate-y-1"
+    }
+  },
+  "layout": {
+    "maxWidth": "max-w-4xl",
+    "grid": {
+      "twoCol": "grid md:grid-cols-2 gap-4",
+      "threeCol": "grid md:grid-cols-3 gap-4"
+    },
+    "flex": {
+      "between": "flex items-center justify-between",
+      "center": "flex items-center justify-center",
+      "gap": "flex items-center gap-3"
+    }
+  },
+  "header": {
+    "topBar": "bg-slate-900/30 backdrop-blur-sm border-b border-slate-800/50 px-6 py-4",
+    "time": "text-sm font-medium text-white",
+    "date": "text-sm text-slate-500"
+  },
+  "iconPaths": {
+    "dashboard": "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+    "document": "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+    "inbox": "M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4",
+    "settings": "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+    "plus": "M12 4v16m8-8H4",
+    "logout": "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
+    "chevronLeft": "M11 19l-7-7 7-7m8 14l-7-7 7-7",
+    "externalLink": "M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14",
+    "check": "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
+    "warning": "M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+    "key": "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z",
+    "mail": "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+    "server": "M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01",
+    "eye": "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z",
+    "eyeOff": "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+  }
+}
