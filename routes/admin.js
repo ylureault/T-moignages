@@ -22,7 +22,7 @@ router.get('/', (req, res) => {
     return res.redirect('/admin/testimonials');
   }
   const template = fs.readFileSync(path.join(__dirname, '../views/admin/login.html'), 'utf-8');
-  res.send(template);
+  res.send(template.replace('{{error}}', ''));
 });
 
 // POST /admin/login

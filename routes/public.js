@@ -5,8 +5,8 @@ const { sendEmail } = require('../utils/email');
 const fs = require('fs');
 const path = require('path');
 
-// GET /t/:slug - Display testimonial form
-router.get('/t/:slug', (req, res) => {
+// GET /:slug - Display testimonial form
+router.get('/:slug', (req, res) => {
   const { slug } = req.params;
 
   // Get campaign by slug
@@ -33,8 +33,8 @@ router.get('/t/:slug', (req, res) => {
   res.send(html);
 });
 
-// POST /t/:slug - Submit testimonial
-router.post('/t/:slug', express.urlencoded({ extended: true }), async (req, res) => {
+// POST /:slug - Submit testimonial
+router.post('/:slug', express.urlencoded({ extended: true }), async (req, res) => {
   const { slug } = req.params;
   const { firstname, lastname, email, position, rating, learned, testimonial, can_publish, wants_contact, topics } = req.body;
 

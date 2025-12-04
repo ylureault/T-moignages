@@ -21,13 +21,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 const publicRoutes = require('./routes/public');
 const adminRoutes = require('./routes/admin');
 
-app.use('/', publicRoutes);
-app.use('/admin', adminRoutes);
-
-// Home redirect
+// Home redirect - BEFORE other routes
 app.get('/', (req, res) => {
   res.redirect('https://insuffle.com');
 });
+
+// Mount routes
+app.use('/t', publicRoutes);  // /t/:slug
+app.use('/admin', adminRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {
