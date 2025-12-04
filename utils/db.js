@@ -64,6 +64,12 @@ function initDatabase() {
       FOREIGN KEY (campaign_id) REFERENCES campaigns(id),
       FOREIGN KEY (template_id) REFERENCES templates(id)
     );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   // Insert default types if not exist
@@ -273,8 +279,35 @@ function generateSlug() {
   return slug;
 }
 
+// Get a setting value
+function getSetting(key) {
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+  return row ? row.value : null;
+}
+
+// Set a setting value
+function setSetting(key, value) {
+  db.prepare(`
+    INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = CURRENT_TIMESTAMP
+  `).run(key, value, value);
+}
+
+// Get all settings
+function getAllSettings() {
+  const rows = db.prepare('SELECT key, value FROM settings').all();
+  const settings = {};
+  rows.forEach(row => {
+    settings[row.key] = row.value;
+  });
+  return settings;
+}
+
 module.exports = {
   db,
   initDatabase,
-  generateSlug
+  generateSlug,
+  getSetting,
+  setSetting,
+  getAllSettings
 };

@@ -1,13 +1,20 @@
 const nodemailer = require('nodemailer');
+const { getSetting } = require('./db');
 
 function createTransporter() {
+  // Try database settings first, fall back to env vars
+  const host = getSetting('smtp_host') || process.env.SMTP_HOST || 'smtp-relay.brevo.com';
+  const port = parseInt(getSetting('smtp_port') || process.env.SMTP_PORT) || 587;
+  const user = getSetting('smtp_user') || process.env.SMTP_USER;
+  const pass = getSetting('smtp_pass') || process.env.SMTP_PASS;
+
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-    port: parseInt(process.env.SMTP_PORT) || 587,
+    host: host,
+    port: port,
     secure: false,
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
+      user: user,
+      pass: pass
     }
   });
 }
@@ -15,8 +22,12 @@ function createTransporter() {
 async function sendEmail(to, subject, html) {
   const transporter = createTransporter();
 
+  // Get from settings
+  const fromEmail = getSetting('from_email') || 'contact@insuffle.com';
+  const fromName = getSetting('from_name') || 'Insuffle';
+
   const mailOptions = {
-    from: '"Insuffle" <contact@insuffle.com>',
+    from: `"${fromName}" <${fromEmail}>`,
     to: to,
     subject: subject,
     html: html

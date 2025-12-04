@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { db, generateSlug } = require('../utils/db');
+const { db, generateSlug, getSetting, setSetting, getAllSettings } = require('../utils/db');
 const { requireAuth, createSession, destroySession, verifyPassword, isValidSession } = require('../middleware/auth');
 const { replaceVariables } = require('../utils/template');
 const { sendEmail } = require('../utils/email');
@@ -626,6 +626,75 @@ router.post('/send', requireAuth, express.json(), (req, res) => {
   }).catch(error => {
     res.status(500).json({ error: error.message });
   });
+});
+
+// ============ SETTINGS ============
+
+// GET /admin/settings
+router.get('/settings', requireAuth, (req, res) => {
+  const settings = getAllSettings();
+
+  let content = fs.readFileSync(path.join(__dirname, '../views/admin/settings.html'), 'utf-8');
+
+  content = content
+    .replace('{{smtp_host}}', settings.smtp_host || 'smtp-relay.brevo.com')
+    .replace('{{smtp_port}}', settings.smtp_port || '587')
+    .replace('{{smtp_user}}', settings.smtp_user || '')
+    .replace('{{smtp_pass}}', settings.smtp_pass || '')
+    .replace('{{from_email}}', settings.from_email || 'contact@insuffle.com')
+    .replace('{{from_name}}', settings.from_name || 'Insuffle');
+
+  res.send(renderAdminPage(content, 'settings'));
+});
+
+// POST /admin/settings
+router.post('/settings', requireAuth, express.json(), (req, res) => {
+  const { smtp_host, smtp_port, smtp_user, smtp_pass, from_email, from_name } = req.body;
+
+  try {
+    if (smtp_host) setSetting('smtp_host', smtp_host);
+    if (smtp_port) setSetting('smtp_port', smtp_port);
+    if (smtp_user) setSetting('smtp_user', smtp_user);
+    if (smtp_pass) setSetting('smtp_pass', smtp_pass);
+    if (from_email) setSetting('from_email', from_email);
+    if (from_name) setSetting('from_name', from_name);
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /admin/settings/test - Test email configuration
+router.post('/settings/test', requireAuth, express.json(), async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email requis' });
+  }
+
+  const testHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: Arial, sans-serif; padding: 20px;">
+      <h1 style="color: #14b8a6;">Test de configuration email</h1>
+      <p>Si vous recevez cet email, votre configuration SMTP Brevo fonctionne correctement !</p>
+      <p style="color: #666; margin-top: 20px;">— Témoignages Insuffle</p>
+    </body>
+    </html>
+  `;
+
+  try {
+    const result = await sendEmail(email, 'Test de configuration - Témoignages Insuffle', testHtml);
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: result.error });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Helper functions

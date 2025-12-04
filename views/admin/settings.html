@@ -1,0 +1,156 @@
+<div class="page-header">
+  <h1>Paramètres</h1>
+  <p class="page-subtitle">Configuration SMTP Brevo pour l'envoi d'emails</p>
+</div>
+
+<div class="settings-container">
+  <form id="settingsForm" class="settings-form">
+    <div class="settings-section">
+      <h2>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+          <polyline points="22,6 12,13 2,6"></polyline>
+        </svg>
+        Configuration SMTP Brevo
+      </h2>
+      <p class="section-hint">Ces identifiants sont utilisés pour envoyer les emails de demande de témoignage.</p>
+
+      <div class="form-group">
+        <label for="smtp_host">Hôte SMTP</label>
+        <input type="text" id="smtp_host" name="smtp_host" value="{{smtp_host}}" placeholder="smtp-relay.brevo.com">
+        <span class="form-hint">Par défaut : smtp-relay.brevo.com</span>
+      </div>
+
+      <div class="form-group">
+        <label for="smtp_port">Port SMTP</label>
+        <input type="number" id="smtp_port" name="smtp_port" value="{{smtp_port}}" placeholder="587">
+        <span class="form-hint">Par défaut : 587</span>
+      </div>
+
+      <div class="form-group">
+        <label for="smtp_user">Identifiant SMTP (email)</label>
+        <input type="email" id="smtp_user" name="smtp_user" value="{{smtp_user}}" placeholder="votre-email@exemple.com">
+        <span class="form-hint">Votre adresse email Brevo</span>
+      </div>
+
+      <div class="form-group">
+        <label for="smtp_pass">Clé API SMTP</label>
+        <div class="password-input">
+          <input type="password" id="smtp_pass" name="smtp_pass" value="{{smtp_pass}}" placeholder="xkeysib-xxxxxxxx...">
+          <button type="button" class="toggle-password" onclick="togglePassword('smtp_pass')">
+            <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+        <span class="form-hint">Trouvez votre clé API dans Brevo > Paramètres > SMTP & API</span>
+      </div>
+
+      <div class="form-group">
+        <label for="from_email">Email expéditeur</label>
+        <input type="email" id="from_email" name="from_email" value="{{from_email}}" placeholder="contact@insuffle.com">
+        <span class="form-hint">L'adresse qui apparaîtra comme expéditeur des emails</span>
+      </div>
+
+      <div class="form-group">
+        <label for="from_name">Nom expéditeur</label>
+        <input type="text" id="from_name" name="from_name" value="{{from_name}}" placeholder="Insuffle">
+        <span class="form-hint">Le nom qui apparaîtra comme expéditeur des emails</span>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+        Enregistrer
+      </button>
+      <button type="button" class="btn btn-secondary" onclick="testEmail()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+        Tester la configuration
+      </button>
+    </div>
+  </form>
+
+  <div class="settings-info">
+    <h3>Comment obtenir vos identifiants Brevo ?</h3>
+    <ol>
+      <li>Connectez-vous à votre compte <a href="https://app.brevo.com" target="_blank">Brevo</a></li>
+      <li>Allez dans <strong>Paramètres</strong> (icône engrenage)</li>
+      <li>Cliquez sur <strong>SMTP & API</strong></li>
+      <li>Générez une nouvelle clé API si nécessaire</li>
+      <li>Copiez la clé et collez-la ci-dessus</li>
+    </ol>
+    <p class="info-note">
+      <strong>Note :</strong> L'identifiant SMTP est généralement votre adresse email Brevo.
+    </p>
+  </div>
+</div>
+
+<script>
+function togglePassword(fieldId) {
+  const input = document.getElementById(fieldId);
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+document.getElementById('settingsForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  const formData = {
+    smtp_host: document.getElementById('smtp_host').value,
+    smtp_port: document.getElementById('smtp_port').value,
+    smtp_user: document.getElementById('smtp_user').value,
+    smtp_pass: document.getElementById('smtp_pass').value,
+    from_email: document.getElementById('from_email').value,
+    from_name: document.getElementById('from_name').value
+  };
+
+  try {
+    const response = await fetch('/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData)
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showNotification('Paramètres enregistrés avec succès', 'success');
+    } else {
+      showNotification(data.error || 'Erreur lors de l\'enregistrement', 'error');
+    }
+  } catch (error) {
+    showNotification('Erreur de connexion', 'error');
+  }
+});
+
+async function testEmail() {
+  const testEmailAddress = prompt('Adresse email pour le test :');
+  if (!testEmailAddress) return;
+
+  try {
+    const response = await fetch('/admin/settings/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: testEmailAddress })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showNotification('Email de test envoyé avec succès !', 'success');
+    } else {
+      showNotification(data.error || 'Échec de l\'envoi', 'error');
+    }
+  } catch (error) {
+    showNotification('Erreur de connexion', 'error');
+  }
+}
+</script>
