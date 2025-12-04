@@ -34,9 +34,9 @@ try {
   process.exit(1);
 }
 
-// Home redirect - BEFORE other routes
+// Home - redirect to admin
 app.get('/', (req, res) => {
-  res.redirect('https://insuffle.com');
+  res.redirect('/admin');
 });
 
 // Mount routes
