@@ -1,0 +1,25 @@
+{
+  "name": "temoignages-insuffle",
+  "version": "1.0.0",
+  "description": "Application de collecte et gestion de témoignages clients pour Insuffle",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "testimonials",
+    "insuffle",
+    "facilitation"
+  ],
+  "author": "Insuffle",
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^11.6.0",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "nodemailer": "^6.9.16",
+    "uuid": "^11.0.3"
+  }
+}

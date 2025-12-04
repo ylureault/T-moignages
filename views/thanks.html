@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Merci ! - Insuffle</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="https://insuffle.com/favicon.ico">
+</head>
+<body class="public-page thanks-page">
+  <!-- Decorative blobs -->
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+
+  <div class="thanks-container">
+    <div class="thanks-card">
+      <div class="success-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+      </div>
+
+      <h1>Merci {{firstname}} ! 🙏</h1>
+
+      <p class="thanks-message">
+        Votre témoignage a bien été enregistré. Il nous aide à nous améliorer et peut inspirer d'autres équipes.
+      </p>
+
+      <div class="share-box">
+        <h3>💡 Vous n'étiez pas seul(e) ?</h3>
+        <p>Partagez ce lien avec vos collègues qui ont participé à cet accompagnement :</p>
+        <div class="share-link">
+          <input type="text" readonly value="" id="shareLink">
+          <button onclick="copyShareLink()" class="btn btn-secondary">Copier</button>
+        </div>
+      </div>
+
+      <div class="thanks-actions">
+        <a href="https://insuffle.com" class="btn btn-primary">
+          Découvrir Insuffle
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+        <a href="https://www.linkedin.com/company/insuffle" target="_blank" class="btn btn-ghost">
+          Suivez-nous sur LinkedIn
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="form-footer">
+      <p>Insuffle - Facilitation & Transformation</p>
+    </footer>
+  </div>
+
+  <script>
+    // Set share link
+    const slug = '{{slug}}';
+    const baseUrl = window.location.origin;
+    const shareLink = `${baseUrl}/t/${slug}`;
+    document.getElementById('shareLink').value = shareLink;
+
+    function copyShareLink() {
+      const input = document.getElementById('shareLink');
+      input.select();
+      document.execCommand('copy');
+
+      const btn = input.nextElementSibling;
+      btn.textContent = 'Copié !';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Copier';
+        btn.classList.remove('copied');
+      }, 2000);
+    }
+  </script>
+</body>
+</html>

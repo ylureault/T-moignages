@@ -1,0 +1,86 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Campagnes</h1>
+    <span class="badge badge-count">{{campaigns_count}} campagne(s)</span>
+  </div>
+  <button class="btn btn-primary" onclick="openCreateCampaignModal()">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    Nouvelle campagne
+  </button>
+</div>
+
+<!-- Campaigns list -->
+<div class="campaigns-list">
+  {{campaigns}}
+</div>
+
+<!-- Create/Edit Campaign Modal -->
+<div id="campaignModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="campaignModalTitle">Nouvelle campagne</h2>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="campaignForm">
+        <input type="hidden" id="campaignId" name="id">
+
+        <div class="form-group">
+          <label for="campaignName">Nom interne <span class="required">*</span></label>
+          <input type="text" id="campaignName" name="name" required placeholder="Ex: Séminaire CODIR Dupont Nov 2025">
+        </div>
+
+        <div class="form-group">
+          <label for="campaignType">Type d'accompagnement</label>
+          <select id="campaignType" name="type_id">
+            {{types_options}}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="campaignFacilitators">Facilitateur(s)</label>
+          <input type="text" id="campaignFacilitators" name="facilitators" placeholder="Ex: Yoan Lureault">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="campaignCompany">Entreprise</label>
+            <input type="text" id="campaignCompany" name="company" placeholder="Ex: Acme Corp">
+          </div>
+          <div class="form-group">
+            <label for="campaignDate">Date</label>
+            <input type="text" id="campaignDate" name="date" placeholder="Ex: Novembre 2025">
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Success Modal with Link -->
+<div id="successModal" class="modal">
+  <div class="modal-content modal-success">
+    <div class="modal-header">
+      <h2>Campagne créée !</h2>
+      <button class="modal-close" onclick="closeSuccessModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="success-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+      </div>
+      <p>Voici le lien à partager avec vos clients :</p>
+      <div class="link-box">
+        <input type="text" id="generatedLink" readonly>
+        <button class="btn btn-primary" onclick="copyGeneratedLink()">Copier</button>
+      </div>
+    </div>
+  </div>
+</div>

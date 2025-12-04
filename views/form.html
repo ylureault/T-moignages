@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Partagez votre expérience - Insuffle</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="https://insuffle.com/favicon.ico">
+</head>
+<body class="public-page">
+  <!-- Decorative blobs -->
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+
+  <div class="form-container">
+    <!-- Header -->
+    <header class="form-header">
+      <div class="logo-box">I</div>
+      <h1>Partagez votre expérience</h1>
+      <p class="subtitle">Votre témoignage peut inspirer d'autres équipes à franchir le pas</p>
+    </header>
+
+    <!-- Context info -->
+    <div class="context-card">
+      <div class="context-item">
+        <span class="context-label">Type d'accompagnement</span>
+        <span class="context-value">{{type_name}}</span>
+      </div>
+      <div class="context-item">
+        <span class="context-label">Facilitateur(s)</span>
+        <span class="context-value">{{facilitators}}</span>
+      </div>
+      <div class="context-item">
+        <span class="context-label">Entreprise</span>
+        <span class="context-value">{{company}}</span>
+      </div>
+      <div class="context-item">
+        <span class="context-label">Date</span>
+        <span class="context-value">{{date}}</span>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <form action="/t/{{slug}}" method="POST" class="testimonial-form" id="testimonialForm">
+
+      <!-- Personal info -->
+      <div class="form-section">
+        <h2>Vos informations</h2>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="firstname">Prénom <span class="required">*</span></label>
+            <input type="text" id="firstname" name="firstname" required placeholder="Votre prénom">
+          </div>
+          <div class="form-group">
+            <label for="lastname">Nom <span class="required">*</span></label>
+            <input type="text" id="lastname" name="lastname" required placeholder="Votre nom">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="email">Email <span class="optional">(optionnel)</span></label>
+            <input type="email" id="email" name="email" placeholder="votre@email.com">
+          </div>
+          <div class="form-group">
+            <label for="position">Poste / Fonction <span class="optional">(optionnel)</span></label>
+            <input type="text" id="position" name="position" placeholder="Ex: Directeur Marketing">
+          </div>
+        </div>
+      </div>
+
+      <!-- Rating -->
+      <div class="form-section">
+        <h2>Note globale <span class="required">*</span></h2>
+        <p class="form-hint">Comment évaluez-vous globalement cet accompagnement ?</p>
+
+        <div class="rating-container">
+          <div class="rating-display">
+            <span class="rating-emoji" id="ratingEmoji">😊</span>
+            <span class="rating-number" id="ratingNumber">7</span>
+            <span class="rating-max">/10</span>
+          </div>
+          <input type="range" id="rating" name="rating" min="1" max="10" value="7" class="rating-slider">
+          <div class="rating-labels">
+            <span>Décevant</span>
+            <span>Excellent</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Learned -->
+      <div class="form-section">
+        <h2>Qu'avez-vous appris ou retenu ? <span class="required">*</span></h2>
+        <p class="form-hint">Quels apprentissages clés gardez-vous de cet accompagnement ?</p>
+        <textarea id="learned" name="learned" required rows="4" placeholder="Ex: J'ai appris à mieux écouter mes collaborateurs et à poser des questions ouvertes..."></textarea>
+      </div>
+
+      <!-- Testimonial -->
+      <div class="form-section">
+        <h2>Votre témoignage <span class="required">*</span></h2>
+        <p class="form-hint">Décrivez votre expérience et ce que vous avez vécu pendant cet accompagnement</p>
+        <textarea id="testimonial" name="testimonial" required rows="6" placeholder="Ex: Ce séminaire a vraiment transformé notre façon de travailler en équipe. L'approche de facilitation nous a permis de..."></textarea>
+      </div>
+
+      <!-- Interest in other services -->
+      <div class="form-section">
+        <h2>Intéressé(e) par d'autres accompagnements ?</h2>
+        <p class="form-hint">Formation, coaching, facilitation... Insuffle propose d'autres services.</p>
+
+        <div class="interest-box">
+          <label class="radio-label">
+            <input type="radio" name="wants_contact" value="yes">
+            <span class="radiomark"></span>
+            <span>Oui, je souhaite être contacté(e) par Yoan Lureault</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="wants_contact" value="no" checked>
+            <span class="radiomark"></span>
+            <span>Non merci, pas pour le moment</span>
+          </label>
+        </div>
+
+        <div id="contactPreferences" class="contact-preferences" style="display: none;">
+          <label>Sur quels sujets ?</label>
+          <div class="topics-grid">
+            <label class="topic-checkbox">
+              <input type="checkbox" name="topics" value="formation">
+              <span>Formation</span>
+            </label>
+            <label class="topic-checkbox">
+              <input type="checkbox" name="topics" value="coaching">
+              <span>Coaching</span>
+            </label>
+            <label class="topic-checkbox">
+              <input type="checkbox" name="topics" value="facilitation">
+              <span>Facilitation</span>
+            </label>
+            <label class="topic-checkbox">
+              <input type="checkbox" name="topics" value="seminaire">
+              <span>Séminaire</span>
+            </label>
+            <label class="topic-checkbox">
+              <input type="checkbox" name="topics" value="diagnostic">
+              <span>Diagnostic 4C</span>
+            </label>
+            <label class="topic-checkbox">
+              <input type="checkbox" name="topics" value="autre">
+              <span>Autre</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Consent -->
+      <div class="form-section">
+        <div class="consent-box">
+          <label class="checkbox-label">
+            <input type="checkbox" name="can_publish" id="can_publish" required>
+            <span class="checkmark"></span>
+            <span>J'autorise Insuffle à publier ce témoignage sur son site et ses supports de communication <span class="required">*</span></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <button type="submit" class="btn btn-primary btn-submit">
+        Envoyer mon témoignage
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </form>
+
+    <!-- Footer -->
+    <footer class="form-footer">
+      <p>Insuffle - Facilitation & Transformation</p>
+      <a href="https://insuffle.com" target="_blank">insuffle.com</a>
+    </footer>
+  </div>
+
+  <script>
+    // Rating slider interaction
+    const ratingSlider = document.getElementById('rating');
+    const ratingEmoji = document.getElementById('ratingEmoji');
+    const ratingNumber = document.getElementById('ratingNumber');
+
+    const emojis = {
+      1: '😞', 2: '😞',
+      3: '😕', 4: '😕',
+      5: '😐', 6: '😐',
+      7: '😊', 8: '😊',
+      9: '🤩', 10: '🤩'
+    };
+
+    ratingSlider.addEventListener('input', function() {
+      const value = parseInt(this.value);
+      ratingNumber.textContent = value;
+      ratingEmoji.textContent = emojis[value];
+
+      // Add animation
+      ratingEmoji.classList.add('bounce');
+      setTimeout(() => ratingEmoji.classList.remove('bounce'), 300);
+    });
+
+    // Form validation feedback
+    document.getElementById('testimonialForm').addEventListener('submit', function(e) {
+      const submitBtn = this.querySelector('.btn-submit');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = 'Envoi en cours... <span class="spinner"></span>';
+    });
+
+    // Show/hide contact preferences
+    document.querySelectorAll('input[name="wants_contact"]').forEach(radio => {
+      radio.addEventListener('change', function() {
+        const prefs = document.getElementById('contactPreferences');
+        if (this.value === 'yes') {
+          prefs.style.display = 'block';
+        } else {
+          prefs.style.display = 'none';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<div class="page-header">
+  <div class="page-title">
+    <h1>Témoignages</h1>
+    <span class="badge badge-count">{{testimonials_count}} témoignage(s)</span>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="filters-bar">
+  <form method="GET" class="filters-form">
+    <div class="filter-group">
+      <label>Campagne</label>
+      <select name="campaign_id" onchange="this.form.submit()">
+        {{campaigns_options}}
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Note minimum</label>
+      <select name="min_rating" onchange="this.form.submit()">
+        <option value="">Toutes les notes</option>
+        <option value="9">9+ Excellent</option>
+        <option value="7">7+ Bon</option>
+        <option value="5">5+ Moyen</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Publication</label>
+      <select name="published" onchange="this.form.submit()">
+        <option value="">Tous</option>
+        <option value="1">Publiés</option>
+        <option value="0">Non publiés</option>
+      </select>
+    </div>
+  </form>
+</div>
+
+<!-- Testimonials list -->
+<div class="testimonials-list">
+  {{testimonials}}
+</div>
+
+<!-- Modal for full testimonial -->
+<div id="testimonialModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Détail du témoignage</h2>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modalContent">
+      <!-- Content loaded dynamically -->
+    </div>
+  </div>
+</div>
