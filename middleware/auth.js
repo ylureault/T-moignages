@@ -8,18 +8,29 @@ function generateSessionToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
+// Check if session is valid
+function isValidSession(sessionToken) {
+  if (!sessionToken || !sessions.has(sessionToken)) {
+    return false;
+  }
+
+  const session = sessions.get(sessionToken);
+  // Check session expiry (24 hours)
+  if (Date.now() - session.createdAt > 24 * 60 * 60 * 1000) {
+    sessions.delete(sessionToken);
+    return false;
+  }
+
+  return true;
+}
+
 // Auth middleware for admin routes
 function requireAuth(req, res, next) {
   const sessionToken = req.cookies?.session;
 
-  if (!sessionToken || !sessions.has(sessionToken)) {
-    return res.redirect('/admin');
-  }
-
-  // Check session expiry (24 hours)
-  const session = sessions.get(sessionToken);
-  if (Date.now() - session.createdAt > 24 * 60 * 60 * 1000) {
-    sessions.delete(sessionToken);
+  if (!isValidSession(sessionToken)) {
+    // Clear invalid cookie
+    res.clearCookie('session');
     return res.redirect('/admin');
   }
 
@@ -47,5 +58,6 @@ module.exports = {
   requireAuth,
   createSession,
   destroySession,
-  verifyPassword
+  verifyPassword,
+  isValidSession
 };

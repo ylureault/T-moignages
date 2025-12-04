@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { db, generateSlug } = require('../utils/db');
-const { requireAuth, createSession, destroySession, verifyPassword } = require('../middleware/auth');
+const { requireAuth, createSession, destroySession, verifyPassword, isValidSession } = require('../middleware/auth');
 const { replaceVariables } = require('../utils/template');
 const { sendEmail } = require('../utils/email');
 const fs = require('fs');
@@ -18,9 +18,12 @@ function renderAdminPage(content, activeMenu = '') {
 // GET /admin - Login page
 router.get('/', (req, res) => {
   const sessionToken = req.cookies?.session;
-  if (sessionToken) {
+  // Only redirect if session is actually valid
+  if (isValidSession(sessionToken)) {
     return res.redirect('/admin/testimonials');
   }
+  // Clear any invalid cookie
+  res.clearCookie('session');
   const template = fs.readFileSync(path.join(__dirname, '../views/admin/login.html'), 'utf-8');
   res.send(template.replace('{{error}}', ''));
 });
