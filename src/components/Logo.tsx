@@ -1,4 +1,4 @@
-export function Logo({ light = false }: { light?: boolean }) {
+export function Logo() {
   return (
     <a href="/" className="inline-flex items-center gap-2.5 group">
       <span className="relative flex h-9 w-9 items-center justify-center">
@@ -7,11 +7,7 @@ export function Logo({ light = false }: { light?: boolean }) {
           I
         </span>
       </span>
-      <span
-        className={`font-display text-xl font-bold tracking-tight ${
-          light ? "text-white" : "text-ink"
-        }`}
-      >
+      <span className="font-display text-xl font-bold tracking-tight text-ink">
         Insuffle
       </span>
     </a>

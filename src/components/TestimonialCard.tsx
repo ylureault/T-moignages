@@ -15,7 +15,7 @@ export function TestimonialCard({ t }: { t: Temoignage }) {
   return (
     <a
       href={`/temoignages/${t.id}`}
-      className="group flex h-full flex-col rounded-2xl border border-line bg-paper p-6 transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:shadow-[0_20px_40px_-20px_rgba(21,23,28,0.25)]"
+      className="group flex h-full flex-col rounded-2xl border border-line bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:shadow-[0_20px_40px_-20px_rgba(21,23,28,0.25)]"
     >
       <div className="mb-4 flex items-center justify-between">
         <Stars note={t.note} />

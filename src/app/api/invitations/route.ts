@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
     type: typeof body.type === "string" ? body.type.trim() : "",
     marque: body.marque === "academie" ? "academie" as const : "insuffle" as const,
     message: typeof body.message === "string" ? body.message.trim().slice(0, 1000) : "",
+    ...(typeof body.evenementId === "string" && body.evenementId ? { evenementId: body.evenementId } : {}),
     createdAt: new Date().toISOString(),
     used: false,
   };

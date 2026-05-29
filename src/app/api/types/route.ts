@@ -38,12 +38,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const validStyles = ["stars", "smileys", "scale", "thumbs"];
   const nouveau = {
     id: body.id,
     label: body.label,
     description: body.description || "",
     icon: body.icon || "star",
     color: body.color || "#14b8a6",
+    noteStyle: validStyles.includes(body.noteStyle) ? body.noteStyle : "stars",
+    champs: Array.isArray(body.champs) ? body.champs : [],
   };
 
   types.push(nouveau);

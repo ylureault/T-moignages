@@ -65,6 +65,11 @@ export function validateTemoignage(raw: unknown): Result<Temoignage> {
     ...(isString(o.heroImage) && o.heroImage.length <= 512
       ? { heroImage: o.heroImage }
       : {}),
+    ...(isString(o.evenementId) ? { evenementId: o.evenementId } : {}),
+    ...(o.champsPersonnalises && typeof o.champsPersonnalises === "object"
+      ? { champsPersonnalises: o.champsPersonnalises as Record<string, unknown> }
+      : {}),
+    publie: typeof o.publie === "boolean" ? o.publie : true,
   };
   return { ok: true, value };
 }
@@ -81,12 +86,17 @@ export function validateType(raw: unknown): Result<TypeTemoignage> {
   if (!isString(o.label) || o.label.length === 0 || o.label.length > 120) {
     return { ok: false, error: "label invalide" };
   }
+  const validStyles = ["stars", "smileys", "scale", "thumbs"];
   const value: TypeTemoignage = {
     id: o.id,
     label: o.label,
     description: isString(o.description) ? o.description : "",
     icon: isString(o.icon) ? o.icon : "star",
     color: isString(o.color) && /^#[0-9a-f]{6}$/i.test(o.color) ? o.color : "#14b8a6",
+    noteStyle: isString(o.noteStyle) && validStyles.includes(o.noteStyle)
+      ? o.noteStyle as TypeTemoignage["noteStyle"]
+      : "stars",
+    champs: Array.isArray(o.champs) ? o.champs : [],
   };
   return { ok: true, value };
 }

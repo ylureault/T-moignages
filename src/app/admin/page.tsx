@@ -1,12 +1,19 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { Temoignage, TypeTemoignage, Invitation } from "@/types";
+import type { Temoignage, TypeTemoignage, Invitation, Evenement, ChampPersonnalise, NoteStyle } from "@/types";
 
-type View = "dashboard" | "temoignages" | "types" | "invitations" | "backup";
+type View = "dashboard" | "temoignages" | "types" | "evenements" | "invitations" | "backup";
 
 const SOURCES = ["google", "trustpilot", "linkedin", "site", "autre"] as const;
 const MARQUES = ["insuffle", "academie"] as const;
+const NOTE_STYLES: { value: NoteStyle; label: string }[] = [
+  { value: "stars", label: "Étoiles" },
+  { value: "smileys", label: "Smileys" },
+  { value: "scale", label: "Échelle 1-10" },
+  { value: "thumbs", label: "Pouces" },
+];
+const CHAMP_TYPES: ChampPersonnalise["type"][] = ["text", "textarea", "note", "select", "checkbox"];
 
 // ─── API helper ───────────────────────────────────────────────
 function apiFetch(path: string, apiKey: string, opts: RequestInit = {}) {
@@ -53,6 +60,9 @@ const ICONS = {
   link: "M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1",
   mail: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
   copy: "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z",
+  calendar: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+  eye: "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z",
+  eyeOff: "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M3 3l18 18",
 };
 
 // ─── Main Admin Page ──────────────────────────────────────────
@@ -153,6 +163,7 @@ function AdminShell({ apiKey, onLogout }: { apiKey: string; onLogout: () => void
     { id: "dashboard", label: "Tableau de bord", icon: ICONS.dashboard },
     { id: "temoignages", label: "Témoignages", icon: ICONS.document },
     { id: "types", label: "Types", icon: ICONS.inbox },
+    { id: "evenements", label: "Événements", icon: ICONS.calendar },
     { id: "invitations", label: "Invitations", icon: ICONS.link },
     { id: "backup", label: "Sauvegarde", icon: ICONS.server },
   ];
@@ -208,6 +219,7 @@ function AdminShell({ apiKey, onLogout }: { apiKey: string; onLogout: () => void
         {view === "dashboard" && <DashboardView apiKey={apiKey} onNav={setView} />}
         {view === "temoignages" && <TemoignagesView apiKey={apiKey} />}
         {view === "types" && <TypesView apiKey={apiKey} />}
+        {view === "evenements" && <EvenementsView apiKey={apiKey} />}
         {view === "invitations" && <InvitationsView apiKey={apiKey} />}
         {view === "backup" && <BackupView apiKey={apiKey} />}
       </main>
@@ -218,27 +230,35 @@ function AdminShell({ apiKey, onLogout }: { apiKey: string; onLogout: () => void
 // ─── Dashboard ────────────────────────────────────────────────
 function DashboardView({ apiKey, onNav }: { apiKey: string; onNav: (v: View) => void }) {
   const [temoignages, setTemoignages] = useState<Temoignage[]>([]);
+  const [evenements, setEvenements] = useState<Evenement[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/temoignages?limit=50")
-      .then((r) => r.json())
-      .then((d) => { setTemoignages(d.data || []); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, []);
+    Promise.all([
+      fetch("/api/temoignages?limit=50").then((r) => r.json()),
+      apiFetch("/api/evenements", apiKey).then((r) => r.json()),
+    ]).then(([td, ev]) => {
+      setTemoignages(td.data || []);
+      setEvenements(ev.data || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [apiKey]);
 
   if (loading) return <Loader />;
 
   const avg = temoignages.length > 0 ? temoignages.reduce((s, t) => s + t.note, 0) / temoignages.length : 0;
   const verified = temoignages.filter((t) => t.verifie).length;
   const insuffle = temoignages.filter((t) => t.marque === "insuffle").length;
-  const academie = temoignages.filter((t) => t.marque === "academie").length;
+  const totalEvents = evenements.length;
+  const activeEvents = evenements.filter((e) => e.actif).length;
 
   const stats = [
     { label: "Témoignages", value: temoignages.length, color: "blue" },
     { label: "Note moyenne", value: avg.toFixed(1) + "/5", color: "amber" },
     { label: "Vérifiés", value: verified, color: "teal" },
     { label: "Insuffle", value: insuffle, color: "purple" },
+    { label: "Événements", value: totalEvents, color: "cyan" },
+    { label: "Événements actifs", value: activeEvents, color: "emerald" },
   ];
 
   const colorMap: Record<string, string> = {
@@ -246,6 +266,17 @@ function DashboardView({ apiKey, onNav }: { apiKey: string; onNav: (v: View) => 
     amber: "bg-amber-500/20 text-amber-400",
     teal: "bg-teal-500/20 text-teal-400",
     purple: "bg-purple-500/20 text-purple-400",
+    cyan: "bg-cyan-500/20 text-cyan-400",
+    emerald: "bg-emerald-500/20 text-emerald-400",
+  };
+
+  const iconMap: Record<string, string> = {
+    blue: ICONS.document,
+    amber: ICONS.star,
+    teal: ICONS.check,
+    purple: ICONS.star,
+    cyan: ICONS.calendar,
+    emerald: ICONS.calendar,
   };
 
   const recent = [...temoignages].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
@@ -257,12 +288,12 @@ function DashboardView({ apiKey, onNav }: { apiKey: string; onNav: (v: View) => 
         <p className="mt-1 text-sm text-slate-400">Vue d&apos;ensemble de vos témoignages</p>
       </div>
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map((s) => (
           <div key={s.label} className="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-6 backdrop-blur-sm">
             <div className="flex items-center gap-3">
               <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${colorMap[s.color]}`}>
-                <Icon d={ICONS.star} className="w-5 h-5" />
+                <Icon d={iconMap[s.color] || ICONS.star} className="w-5 h-5" />
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{s.label}</p>
@@ -310,6 +341,7 @@ function DashboardView({ apiKey, onNav }: { apiKey: string; onNav: (v: View) => 
 function TemoignagesView({ apiKey }: { apiKey: string }) {
   const [temoignages, setTemoignages] = useState<Temoignage[]>([]);
   const [types, setTypes] = useState<TypeTemoignage[]>([]);
+  const [evenements, setEvenements] = useState<Evenement[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Temoignage | null>(null);
   const [creating, setCreating] = useState(false);
@@ -324,12 +356,14 @@ function TemoignagesView({ apiKey }: { apiKey: string }) {
     Promise.all([
       fetch("/api/temoignages?limit=50").then((r) => r.json()),
       fetch("/api/types").then((r) => r.json()),
-    ]).then(([td, tp]) => {
+      apiFetch("/api/evenements", apiKey).then((r) => r.json()),
+    ]).then(([td, tp, ev]) => {
       setTemoignages(td.data || []);
       setTypes(tp.data || []);
+      setEvenements(ev.data || []);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, []);
+  }, [apiKey]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -348,6 +382,14 @@ function TemoignagesView({ apiKey }: { apiKey: string }) {
       setTemoignages((prev) => prev.filter((t) => t.id !== id));
       setDeleteId(null);
     }
+  }
+
+  async function togglePublie(t: Temoignage) {
+    const res = await apiFetch(`/api/temoignages/${t.id}`, apiKey, {
+      method: "PUT",
+      body: JSON.stringify({ publie: t.publie === false }),
+    });
+    if (res.ok) loadData();
   }
 
   async function handleSave(data: Record<string, unknown>) {
@@ -380,6 +422,7 @@ function TemoignagesView({ apiKey }: { apiKey: string }) {
       <TemoignageForm
         initial={editing}
         types={types}
+        evenements={evenements}
         saving={saving}
         error={error}
         apiKey={apiKey}
@@ -388,6 +431,8 @@ function TemoignagesView({ apiKey }: { apiKey: string }) {
       />
     );
   }
+
+  const evtMap = Object.fromEntries(evenements.map((e) => [e.id, e]));
 
   return (
     <div>
@@ -437,6 +482,7 @@ function TemoignagesView({ apiKey }: { apiKey: string }) {
               <th className="hidden px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 md:table-cell">Marque</th>
               <th className="hidden px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 lg:table-cell">Source</th>
               <th className="hidden px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 lg:table-cell">Vérifié</th>
+              <th className="hidden px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 xl:table-cell">Événement</th>
               <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Date</th>
               <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Actions</th>
             </tr>
@@ -468,9 +514,21 @@ function TemoignagesView({ apiKey }: { apiKey: string }) {
                     : <span className="rounded-lg bg-slate-700/50 px-2.5 py-1 text-xs font-medium text-slate-500">Non</span>
                   }
                 </td>
+                <td className="hidden px-4 py-4 xl:table-cell">
+                  {t.evenementId && evtMap[t.evenementId] ? (
+                    <span className="rounded-lg bg-cyan-500/20 px-2.5 py-1 text-xs font-medium text-cyan-400">
+                      {evtMap[t.evenementId].nom}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-600">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-4 text-sm text-slate-400">{t.date}</td>
                 <td className="px-4 py-4">
                   <div className="flex items-center gap-1">
+                    <button onClick={() => togglePublie(t)} className={`rounded-lg p-2 transition-colors ${t.publie === false ? "text-slate-500 hover:bg-emerald-500/10 hover:text-emerald-400" : "text-emerald-400 hover:bg-slate-700/50 hover:text-slate-400"}`} title={t.publie === false ? "Publier" : "Masquer"}>
+                      <Icon d={t.publie === false ? ICONS.eyeOff : ICONS.eye} className="w-4 h-4" />
+                    </button>
                     <button onClick={() => setEditing(t)} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700/50 hover:text-white" title="Modifier">
                       <Icon d={ICONS.edit} className="w-4 h-4" />
                     </button>
@@ -482,7 +540,7 @@ function TemoignagesView({ apiKey }: { apiKey: string }) {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">Aucun témoignage trouvé</td></tr>
+              <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-500">Aucun témoignage trouvé</td></tr>
             )}
           </tbody>
         </table>
@@ -516,6 +574,7 @@ function TemoignagesView({ apiKey }: { apiKey: string }) {
 function TemoignageForm({
   initial,
   types,
+  evenements,
   saving,
   error,
   apiKey,
@@ -524,6 +583,7 @@ function TemoignageForm({
 }: {
   initial: Temoignage | null;
   types: TypeTemoignage[];
+  evenements: Evenement[];
   saving: boolean;
   error: string;
   apiKey: string;
@@ -543,11 +603,13 @@ function TemoignageForm({
     marque: initial?.marque || "insuffle",
     verifie: initial?.verifie ?? false,
     recommande: initial?.recommande ?? true,
+    publie: initial?.publie ?? true,
     date: initial?.date || new Date().toISOString().split("T")[0],
     heroImage: initial?.heroImage || "",
     reponseAuteur: initial?.reponse?.auteur || "",
     reponseContenu: initial?.reponse?.contenu || "",
     reponseDate: initial?.reponse?.date || "",
+    evenementId: initial?.evenementId || "",
   });
   const [uploading, setUploading] = useState(false);
 
@@ -571,9 +633,11 @@ function TemoignageForm({
       marque: form.marque,
       verifie: form.verifie,
       recommande: form.recommande,
+      publie: form.publie,
       date: form.date,
     };
     if (form.heroImage) data.heroImage = form.heroImage;
+    if (form.evenementId) data.evenementId = form.evenementId;
     if (form.reponseContenu) {
       data.reponse = {
         auteur: form.reponseAuteur || "Insuffle",
@@ -669,7 +733,7 @@ function TemoignageForm({
               </select>
             </div>
           </div>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
             <div>
               <label className={labelClass}>Marque</label>
               <select value={form.marque} onChange={update("marque")} className={inputClass}>
@@ -680,6 +744,13 @@ function TemoignageForm({
               <label className={labelClass}>Tags (séparés par des virgules)</label>
               <input value={form.tags} onChange={update("tags")} className={inputClass} placeholder="leadership, transformation" />
             </div>
+            <div>
+              <label className={labelClass}>Événement (optionnel)</label>
+              <select value={form.evenementId} onChange={update("evenementId")} className={inputClass}>
+                <option value="">— Aucun —</option>
+                {evenements.map((ev) => <option key={ev.id} value={ev.id}>{ev.nom}</option>)}
+              </select>
+            </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-6">
             <label className="flex items-center gap-2 text-sm text-slate-300">
@@ -689,6 +760,10 @@ function TemoignageForm({
             <label className="flex items-center gap-2 text-sm text-slate-300">
               <input type="checkbox" checked={form.recommande} onChange={update("recommande")} className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-teal-500 focus:ring-teal-500/20" />
               Recommande
+            </label>
+            <label className="flex items-center gap-2 text-sm text-slate-300">
+              <input type="checkbox" checked={form.publie} onChange={update("publie")} className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-teal-500 focus:ring-teal-500/20" />
+              Publié (visible)
             </label>
           </div>
         </fieldset>
@@ -741,6 +816,23 @@ function TemoignageForm({
             <textarea value={form.reponseContenu} onChange={update("reponseContenu")} rows={3} className={`${inputClass} resize-none`} placeholder="Votre réponse au témoignage…" />
           </div>
         </fieldset>
+
+        {/* Custom fields (read-only display when editing) */}
+        {initial?.champsPersonnalises && Object.keys(initial.champsPersonnalises).length > 0 && (
+          <fieldset>
+            <legend className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-500">Champs personnalisés (lecture seule)</legend>
+            <div className="grid gap-4 md:grid-cols-2">
+              {Object.entries(initial.champsPersonnalises).map(([key, value]) => (
+                <div key={key}>
+                  <label className={labelClass}>{key}</label>
+                  <div className="w-full rounded-xl border border-slate-700/50 bg-slate-900/30 px-4 py-3 text-slate-400">
+                    {typeof value === "boolean" ? (value ? "Oui" : "Non") : String(value ?? "—")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </fieldset>
+        )}
 
         {error && <p className="rounded-xl bg-red-500/20 px-4 py-3 text-sm font-medium text-red-300">{error}</p>}
 
@@ -883,12 +975,44 @@ function TypeForm({ initial, apiKey, onDone, onCancel }: { initial: TypeTemoigna
     description: initial?.description || "",
     icon: initial?.icon || "star",
     color: initial?.color || "#14b8a6",
+    noteStyle: (initial?.noteStyle || "stars") as NoteStyle,
   });
+  const [champs, setChamps] = useState<ChampPersonnalise[]>(initial?.champs || []);
+  const [showNewChamp, setShowNewChamp] = useState(false);
+  const [newChamp, setNewChamp] = useState<{
+    id: string;
+    label: string;
+    type: ChampPersonnalise["type"];
+    required: boolean;
+    placeholder: string;
+    options: string;
+  }>({ id: "", label: "", type: "text", required: false, placeholder: "", options: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const update = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+  const update = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  function addChamp() {
+    if (!newChamp.id || !newChamp.label) return;
+    const champ: ChampPersonnalise = {
+      id: newChamp.id,
+      label: newChamp.label,
+      type: newChamp.type,
+      required: newChamp.required,
+      placeholder: newChamp.placeholder || undefined,
+      options: newChamp.type === "select" && newChamp.options
+        ? newChamp.options.split(",").map((o) => o.trim()).filter(Boolean)
+        : undefined,
+    };
+    setChamps((prev) => [...prev, champ]);
+    setNewChamp({ id: "", label: "", type: "text", required: false, placeholder: "", options: "" });
+    setShowNewChamp(false);
+  }
+
+  function removeChamp(id: string) {
+    setChamps((prev) => prev.filter((c) => c.id !== id));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -897,8 +1021,9 @@ function TypeForm({ initial, apiKey, onDone, onCancel }: { initial: TypeTemoigna
     const isEdit = !!initial;
     const url = isEdit ? `/api/types/${initial!.id}` : "/api/types";
     const method = isEdit ? "PUT" : "POST";
+    const payload = { ...form, champs };
     try {
-      const res = await apiFetch(url, apiKey, { method, body: JSON.stringify(form) });
+      const res = await apiFetch(url, apiKey, { method, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Erreur");
@@ -913,6 +1038,15 @@ function TypeForm({ initial, apiKey, onDone, onCancel }: { initial: TypeTemoigna
   }
 
   const inputClass = "w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-3 text-white outline-none transition-all placeholder:text-slate-500 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20";
+  const labelClass = "mb-2 block text-sm font-medium text-slate-300";
+
+  const champTypeBadge: Record<string, string> = {
+    text: "bg-blue-500/20 text-blue-400",
+    textarea: "bg-indigo-500/20 text-indigo-400",
+    note: "bg-amber-500/20 text-amber-400",
+    select: "bg-purple-500/20 text-purple-400",
+    checkbox: "bg-emerald-500/20 text-emerald-400",
+  };
 
   return (
     <div>
@@ -922,32 +1056,210 @@ function TypeForm({ initial, apiKey, onDone, onCancel }: { initial: TypeTemoigna
         </button>
         <h1 className="text-3xl font-bold">{initial ? "Modifier" : "Nouveau"} type</h1>
       </div>
-      <form onSubmit={handleSubmit} className="max-w-xl space-y-4 rounded-2xl border border-slate-700/50 bg-slate-800/50 p-6 backdrop-blur-sm md:p-8">
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-300">ID *</label>
-          <input required value={form.id} onChange={update("id")} disabled={!!initial} className={`${inputClass} disabled:cursor-not-allowed disabled:text-slate-400`} placeholder="mon-type" />
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-300">Label *</label>
-          <input required value={form.label} onChange={update("label")} className={inputClass} placeholder="Mon type" />
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-300">Description</label>
-          <textarea value={form.description} onChange={update("description")} rows={3} className={`${inputClass} resize-none`} placeholder="Description du type" />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-300">Icône</label>
-            <input value={form.icon} onChange={update("icon")} className={inputClass} placeholder="star" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-300">Couleur</label>
-            <div className="flex items-center gap-2">
-              <input type="color" value={form.color} onChange={update("color")} className="h-10 w-10 cursor-pointer rounded-lg border-0 bg-transparent" />
-              <input value={form.color} onChange={update("color")} className={inputClass} />
+      <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border border-slate-700/50 bg-slate-800/50 p-6 backdrop-blur-sm md:p-8">
+        {/* Basic info */}
+        <fieldset>
+          <legend className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-500">Informations de base</legend>
+          <div className="space-y-4">
+            <div>
+              <label className={labelClass}>ID *</label>
+              <input required value={form.id} onChange={update("id")} disabled={!!initial} className={`${inputClass} disabled:cursor-not-allowed disabled:text-slate-400`} placeholder="mon-type" />
+            </div>
+            <div>
+              <label className={labelClass}>Label *</label>
+              <input required value={form.label} onChange={update("label")} className={inputClass} placeholder="Mon type" />
+            </div>
+            <div>
+              <label className={labelClass}>Description</label>
+              <textarea value={form.description} onChange={update("description")} rows={3} className={`${inputClass} resize-none`} placeholder="Description du type" />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className={labelClass}>Icône</label>
+                <input value={form.icon} onChange={update("icon")} className={inputClass} placeholder="star" />
+              </div>
+              <div>
+                <label className={labelClass}>Couleur</label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={form.color} onChange={update("color")} className="h-10 w-10 cursor-pointer rounded-lg border-0 bg-transparent" />
+                  <input value={form.color} onChange={update("color")} className={inputClass} />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </fieldset>
+
+        {/* Note style */}
+        <fieldset>
+          <legend className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-500">Style de notation</legend>
+          <div>
+            <label className={labelClass}>Style de la note</label>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {NOTE_STYLES.map((ns) => (
+                <button
+                  key={ns.value}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, noteStyle: ns.value }))}
+                  className={`rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                    form.noteStyle === ns.value
+                      ? "border-teal-500/50 bg-teal-500/20 text-teal-400"
+                      : "border-slate-700 bg-slate-900/50 text-slate-400 hover:border-slate-600 hover:text-white"
+                  }`}
+                >
+                  {ns.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </fieldset>
+
+        {/* Custom fields builder */}
+        <fieldset>
+          <legend className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-500">Champs personnalisés</legend>
+
+          {/* Existing fields */}
+          {champs.length > 0 && (
+            <div className="mb-4 space-y-3">
+              {champs.map((champ) => (
+                <div key={champ.id} className="flex items-start justify-between gap-3 rounded-xl border border-slate-700/50 bg-slate-900/30 p-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-white">{champ.label}</span>
+                      <span className={`rounded-lg px-2 py-0.5 text-xs font-medium ${champTypeBadge[champ.type] || "bg-slate-700 text-slate-400"}`}>
+                        {champ.type}
+                      </span>
+                      {champ.required && (
+                        <span className="rounded-lg bg-red-500/20 px-2 py-0.5 text-xs font-medium text-red-400">
+                          Requis
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">ID: {champ.id}</p>
+                    {champ.placeholder && <p className="mt-0.5 text-xs text-slate-500">Placeholder: {champ.placeholder}</p>}
+                    {champ.type === "select" && champ.options && champ.options.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {champ.options.map((opt) => (
+                          <span key={opt} className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-400">
+                            {opt}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeChamp(champ.id)}
+                    className="shrink-0 rounded-lg p-2 text-slate-500 transition-all hover:bg-red-500/10 hover:text-red-400"
+                    title="Supprimer le champ"
+                  >
+                    <Icon d={ICONS.trash} className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {champs.length === 0 && !showNewChamp && (
+            <p className="mb-4 text-sm text-slate-500">Aucun champ personnalisé. Les utilisateurs verront uniquement les champs par défaut.</p>
+          )}
+
+          {/* Add new field form */}
+          {showNewChamp ? (
+            <div className="rounded-xl border border-teal-500/30 bg-slate-900/50 p-4">
+              <h4 className="mb-3 text-sm font-semibold text-teal-400">Nouveau champ</h4>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-400">ID *</label>
+                  <input
+                    value={newChamp.id}
+                    onChange={(e) => setNewChamp((c) => ({ ...c, id: e.target.value }))}
+                    className={inputClass}
+                    placeholder="mon-champ"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-400">Label *</label>
+                  <input
+                    value={newChamp.label}
+                    onChange={(e) => setNewChamp((c) => ({ ...c, label: e.target.value }))}
+                    className={inputClass}
+                    placeholder="Mon champ"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-400">Type</label>
+                  <select
+                    value={newChamp.type}
+                    onChange={(e) => setNewChamp((c) => ({ ...c, type: e.target.value as ChampPersonnalise["type"] }))}
+                    className={inputClass}
+                  >
+                    {CHAMP_TYPES.map((ct) => (
+                      <option key={ct} value={ct}>{ct}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-400">Placeholder</label>
+                  <input
+                    value={newChamp.placeholder}
+                    onChange={(e) => setNewChamp((c) => ({ ...c, placeholder: e.target.value }))}
+                    className={inputClass}
+                    placeholder="Texte indicatif…"
+                  />
+                </div>
+              </div>
+              {newChamp.type === "select" && (
+                <div className="mt-3">
+                  <label className="mb-1 block text-xs font-medium text-slate-400">Options (séparées par des virgules)</label>
+                  <input
+                    value={newChamp.options}
+                    onChange={(e) => setNewChamp((c) => ({ ...c, options: e.target.value }))}
+                    className={inputClass}
+                    placeholder="Option 1, Option 2, Option 3"
+                  />
+                </div>
+              )}
+              <div className="mt-3 flex items-center gap-3">
+                <label className="flex items-center gap-2 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={newChamp.required}
+                    onChange={(e) => setNewChamp((c) => ({ ...c, required: e.target.checked }))}
+                    className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-teal-500 focus:ring-teal-500/20"
+                  />
+                  Requis
+                </label>
+              </div>
+              <div className="mt-4 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={addChamp}
+                  disabled={!newChamp.id || !newChamp.label}
+                  className="rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Ajouter
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowNewChamp(false); setNewChamp({ id: "", label: "", type: "text", required: false, placeholder: "", options: "" }); }}
+                  className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowNewChamp(true)}
+              className="flex items-center gap-2 rounded-xl border border-dashed border-slate-600 px-4 py-3 text-sm font-medium text-slate-400 transition-all hover:border-teal-500/50 hover:text-teal-400"
+            >
+              <Icon d={ICONS.plus} className="w-4 h-4" />
+              Ajouter un champ
+            </button>
+          )}
+        </fieldset>
+
         {error && <p className="rounded-xl bg-red-500/20 px-4 py-3 text-sm font-medium text-red-300">{error}</p>}
         <div className="flex items-center gap-3 pt-2">
           <button type="submit" disabled={saving} className="rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-6 py-3 font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50">
@@ -962,10 +1274,324 @@ function TypeForm({ initial, apiKey, onDone, onCancel }: { initial: TypeTemoigna
   );
 }
 
+// ─── Événements CRUD ──────────────────────────────────────────
+function EvenementsView({ apiKey }: { apiKey: string }) {
+  const [evenements, setEvenements] = useState<Evenement[]>([]);
+  const [types, setTypes] = useState<TypeTemoignage[]>([]);
+  const [temoignages, setTemoignages] = useState<Temoignage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<Evenement | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const loadData = useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      apiFetch("/api/evenements", apiKey).then((r) => r.json()),
+      fetch("/api/types").then((r) => r.json()),
+      fetch("/api/temoignages?limit=200").then((r) => r.json()),
+    ]).then(([ev, tp, tm]) => {
+      setEvenements(ev.data || []);
+      setTypes(tp.data || []);
+      setTemoignages(tm.data || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [apiKey]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  function copyLink(evtId: string) {
+    const url = `${window.location.origin}/temoignages/nouveau?event=${evtId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(evtId);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  }
+
+  function shareLink(evt: Evenement) {
+    const url = `${window.location.origin}/temoignages/nouveau?event=${evt.id}`;
+    const subject = encodeURIComponent(`Partagez votre avis — ${evt.nom}`);
+    const body = encodeURIComponent(
+      `Bonjour,\n\n${evt.description || "Nous aimerions recueillir votre témoignage sur cet événement."}\n\nCliquez ici pour partager votre avis :\n${url}\n\nMerci !\nL'équipe ${evt.marque === "academie" ? "Académie" : "Insuffle"}`
+    );
+    window.open(`mailto:?subject=${subject}&body=${body}`);
+  }
+
+  async function handleDelete(id: string) {
+    const res = await apiFetch(`/api/evenements/${id}`, apiKey, { method: "DELETE" });
+    if (res.ok) {
+      setEvenements((prev) => prev.filter((e) => e.id !== id));
+      setDeleteId(null);
+    }
+  }
+
+  async function toggleActive(evt: Evenement) {
+    const res = await apiFetch(`/api/evenements/${evt.id}`, apiKey, {
+      method: "PUT",
+      body: JSON.stringify({ ...evt, actif: !evt.actif }),
+    });
+    if (res.ok) {
+      setEvenements((prev) => prev.map((e) => e.id === evt.id ? { ...e, actif: !e.actif } : e));
+    }
+  }
+
+  async function handleSave(data: Record<string, unknown>) {
+    const isEdit = !!editing;
+    const url = isEdit ? `/api/evenements/${editing!.id}` : "/api/evenements";
+    const method = isEdit ? "PUT" : "POST";
+    const res = await apiFetch(url, apiKey, { method, body: JSON.stringify(data) });
+    if (res.ok) {
+      loadData();
+      setEditing(null);
+      setCreating(false);
+    }
+  }
+
+  if (loading) return <Loader />;
+
+  if (creating || editing) {
+    return (
+      <EvenementForm
+        initial={editing}
+        types={types}
+        onSave={handleSave}
+        onCancel={() => { setEditing(null); setCreating(false); }}
+      />
+    );
+  }
+
+  const typeMap = Object.fromEntries(types.map((t) => [t.id, t]));
+
+  function countTemoignages(evtId: string) {
+    return temoignages.filter((t) => t.evenementId === evtId).length;
+  }
+
+  return (
+    <div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Événements</h1>
+          <p className="mt-1 text-sm text-slate-400">{evenements.length} événement{evenements.length > 1 ? "s" : ""}</p>
+        </div>
+        <button
+          onClick={() => setCreating(true)}
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-5 py-2.5 font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400"
+        >
+          <Icon d={ICONS.plus} className="w-4 h-4" />
+          Nouvel événement
+        </button>
+      </div>
+
+      {evenements.length === 0 ? (
+        <div className="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-12 text-center backdrop-blur-sm">
+          <Icon d={ICONS.calendar} className="mx-auto mb-4 w-12 h-12 text-slate-600" />
+          <p className="text-slate-400">Aucun événement. Créez-en un pour recueillir des témoignages liés.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {evenements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((evt) => {
+            const t = typeMap[evt.typeId];
+            const count = countTemoignages(evt.id);
+            return (
+              <div key={evt.id} className="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-6 backdrop-blur-sm transition-all hover:border-teal-500/20">
+                <div className="mb-3 flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-white">{evt.nom}</h3>
+                    <p className="mt-0.5 text-xs text-slate-500">{evt.id}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium ${evt.actif ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700/50 text-slate-500"}`}>
+                    {evt.actif ? "Actif" : "Inactif"}
+                  </span>
+                </div>
+
+                {evt.description && <p className="mb-3 text-sm text-slate-400 line-clamp-2">{evt.description}</p>}
+
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  {t && (
+                    <span className="rounded-lg px-2.5 py-1 text-xs font-medium" style={{ backgroundColor: t.color + "33", color: t.color }}>
+                      {t.label}
+                    </span>
+                  )}
+                  <span className={`rounded-lg px-2.5 py-1 text-xs font-medium ${evt.marque === "academie" ? "bg-purple-500/20 text-purple-400" : "bg-teal-500/20 text-teal-400"}`}>
+                    {evt.marque}
+                  </span>
+                  <span className="rounded-lg bg-blue-500/20 px-2.5 py-1 text-xs font-medium text-blue-400">
+                    {count} témoignage{count > 1 ? "s" : ""}
+                  </span>
+                </div>
+
+                <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                  <span>{new Date(evt.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</span>
+                  {evt.lieu && <span>{evt.lieu}</span>}
+                </div>
+
+                {/* Link */}
+                <div className="mb-3 rounded-lg bg-slate-900/50 px-3 py-2">
+                  <p className="mb-1 text-xs text-slate-500">Lien de l&apos;événement</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 truncate text-xs text-teal-400">/temoignages/nouveau?event={evt.id}</code>
+                    <button
+                      onClick={() => copyLink(evt.id)}
+                      className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-400 transition-colors hover:text-teal-400"
+                    >
+                      {copied === evt.id ? "Copié !" : "Copier"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setEditing(evt)} className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-slate-400 transition-colors hover:text-white">
+                    Modifier
+                  </button>
+                  <button onClick={() => toggleActive(evt)} className={`rounded-lg px-3 py-1.5 text-xs transition-colors ${evt.actif ? "text-amber-400 hover:bg-amber-500/10" : "text-emerald-400 hover:bg-emerald-500/10"}`}>
+                    {evt.actif ? "Désactiver" : "Activer"}
+                  </button>
+                  <button
+                    onClick={() => shareLink(evt)}
+                    className="flex items-center gap-1 rounded-lg bg-teal-500/20 px-3 py-1.5 text-xs text-teal-400 transition-colors hover:bg-teal-500/30"
+                  >
+                    <Icon d={ICONS.mail} className="w-3 h-3" />
+                    Email
+                  </button>
+                  <button onClick={() => setDeleteId(evt.id)} className="rounded-lg px-3 py-1.5 text-xs text-red-400 transition-all hover:bg-red-500/10">
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {deleteId && (
+        <Modal onClose={() => setDeleteId(null)}>
+          <div className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/20">
+              <Icon d={ICONS.trash} className="w-6 h-6 text-red-400" />
+            </div>
+            <h3 className="mb-2 text-lg font-semibold">Supprimer cet événement ?</h3>
+            <p className="mb-6 text-sm text-slate-400">Les témoignages associés ne seront pas supprimés.</p>
+            <div className="flex justify-center gap-3">
+              <button onClick={() => setDeleteId(null)} className="rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700">
+                Annuler
+              </button>
+              <button onClick={() => handleDelete(deleteId)} className="rounded-xl bg-red-500/20 px-5 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/30">
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ─── Événement Form ───────────────────────────────────────────
+function EvenementForm({
+  initial,
+  types,
+  onSave,
+  onCancel,
+}: {
+  initial: Evenement | null;
+  types: TypeTemoignage[];
+  onSave: (data: Record<string, unknown>) => void;
+  onCancel: () => void;
+}) {
+  const [form, setForm] = useState({
+    nom: initial?.nom || "",
+    description: initial?.description || "",
+    typeId: initial?.typeId || (types[0]?.id ?? ""),
+    date: initial?.date || new Date().toISOString().split("T")[0],
+    lieu: initial?.lieu || "",
+    marque: initial?.marque || "insuffle",
+    actif: initial?.actif ?? true,
+  });
+
+  const update = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const val = e.target.type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value;
+    setForm((f) => ({ ...f, [key]: val }));
+  };
+
+  const inputClass = "w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-3 text-white outline-none transition-all placeholder:text-slate-500 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20";
+  const labelClass = "mb-2 block text-sm font-medium text-slate-300";
+
+  return (
+    <div>
+      <div className="mb-6 flex items-center gap-4">
+        <button onClick={onCancel} className="rounded-xl bg-slate-800/50 p-2.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white">
+          <Icon d={ICONS.chevronLeft} className="w-5 h-5" />
+        </button>
+        <div>
+          <h1 className="text-3xl font-bold">{initial ? "Modifier" : "Nouvel"} événement</h1>
+          <p className="mt-1 text-sm text-slate-400">{initial ? `Édition de ${initial.nom}` : "Créer un nouvel événement"}</p>
+        </div>
+      </div>
+
+      <form
+        onSubmit={(e) => { e.preventDefault(); onSave(form); }}
+        className="max-w-xl space-y-4 rounded-2xl border border-slate-700/50 bg-slate-800/50 p-6 backdrop-blur-sm md:p-8"
+      >
+        <div>
+          <label className={labelClass}>Nom *</label>
+          <input required value={form.nom} onChange={update("nom")} className={inputClass} placeholder="Conférence Insuffle 2026" />
+        </div>
+        <div>
+          <label className={labelClass}>Description</label>
+          <textarea value={form.description} onChange={update("description")} rows={3} className={`${inputClass} resize-none`} placeholder="Description de l'événement…" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className={labelClass}>Type de témoignage *</label>
+            <select required value={form.typeId} onChange={update("typeId")} className={inputClass}>
+              <option value="">— Choisir —</option>
+              {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Marque</label>
+            <select value={form.marque} onChange={update("marque")} className={inputClass}>
+              <option value="insuffle">Insuffle (Conseil)</option>
+              <option value="academie">Académie (Formations)</option>
+            </select>
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className={labelClass}>Date *</label>
+            <input type="date" required value={form.date} onChange={update("date")} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Lieu</label>
+            <input value={form.lieu} onChange={update("lieu")} className={inputClass} placeholder="Paris, France" />
+          </div>
+        </div>
+        <div>
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input type="checkbox" checked={form.actif} onChange={update("actif")} className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-teal-500 focus:ring-teal-500/20" />
+            Actif (visible publiquement)
+          </label>
+        </div>
+        <div className="flex items-center gap-3 pt-2">
+          <button type="submit" className="rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-6 py-3 font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400">
+            {initial ? "Mettre à jour" : "Créer"}
+          </button>
+          <button type="button" onClick={onCancel} className="rounded-xl bg-slate-800/50 px-5 py-3 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
+            Annuler
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 // ─── Invitations ──────────────────────────────────────────────
 function InvitationsView({ apiKey }: { apiKey: string }) {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [types, setTypes] = useState<TypeTemoignage[]>([]);
+  const [evenements, setEvenements] = useState<Evenement[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -976,9 +1602,11 @@ function InvitationsView({ apiKey }: { apiKey: string }) {
     Promise.all([
       apiFetch("/api/invitations", apiKey).then((r) => r.json()),
       fetch("/api/types").then((r) => r.json()),
-    ]).then(([inv, tp]) => {
+      apiFetch("/api/evenements", apiKey).then((r) => r.json()),
+    ]).then(([inv, tp, ev]) => {
       setInvitations(inv.data || []);
       setTypes(tp.data || []);
+      setEvenements(ev.data || []);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [apiKey]);
@@ -1024,10 +1652,11 @@ function InvitationsView({ apiKey }: { apiKey: string }) {
   if (loading) return <Loader />;
 
   if (creating) {
-    return <InvitationForm types={types} onSave={handleCreate} onCancel={() => setCreating(false)} />;
+    return <InvitationForm types={types} evenements={evenements} onSave={handleCreate} onCancel={() => setCreating(false)} />;
   }
 
   const typeMap = Object.fromEntries(types.map((t) => [t.id, t]));
+  const evtMap = Object.fromEntries(evenements.map((e) => [e.id, e]));
   const pending = invitations.filter((i) => !i.used);
   const used = invitations.filter((i) => i.used);
 
@@ -1053,6 +1682,7 @@ function InvitationsView({ apiKey }: { apiKey: string }) {
           <div className="space-y-3">
             {pending.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((inv) => {
               const t = typeMap[inv.type];
+              const evt = inv.evenementId ? evtMap[inv.evenementId] : null;
               return (
                 <div key={inv.id} className="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-5 backdrop-blur-sm">
                   <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1071,6 +1701,11 @@ function InvitationsView({ apiKey }: { apiKey: string }) {
                         <span className={`rounded-lg px-2.5 py-1 text-xs font-medium ${inv.marque === "academie" ? "bg-purple-500/20 text-purple-400" : "bg-teal-500/20 text-teal-400"}`}>
                           {inv.marque}
                         </span>
+                        {evt && (
+                          <span className="rounded-lg bg-cyan-500/20 px-2.5 py-1 text-xs font-medium text-cyan-400">
+                            {evt.nom}
+                          </span>
+                        )}
                         <span className="text-xs text-slate-500">{new Date(inv.createdAt).toLocaleDateString("fr-FR")}</span>
                       </div>
                       {inv.message && <p className="mt-2 text-sm text-slate-400 line-clamp-2">{inv.message}</p>}
@@ -1164,7 +1799,7 @@ function InvitationsView({ apiKey }: { apiKey: string }) {
 }
 
 // ─── Invitation Form ──────────────────────────────────────────
-function InvitationForm({ types, onSave, onCancel }: { types: TypeTemoignage[]; onSave: (data: Record<string, string>) => void; onCancel: () => void }) {
+function InvitationForm({ types, evenements, onSave, onCancel }: { types: TypeTemoignage[]; evenements: Evenement[]; onSave: (data: Record<string, string>) => void; onCancel: () => void }) {
   const [form, setForm] = useState({
     nom: "",
     email: "",
@@ -1172,6 +1807,7 @@ function InvitationForm({ types, onSave, onCancel }: { types: TypeTemoignage[]; 
     type: types[0]?.id || "",
     marque: "insuffle",
     message: "",
+    evenementId: "",
   });
 
   const update = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -1224,6 +1860,13 @@ function InvitationForm({ types, onSave, onCancel }: { types: TypeTemoignage[]; 
               <option value="academie">Académie (Formations)</option>
             </select>
           </div>
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-300">Événement (optionnel)</label>
+          <select value={form.evenementId} onChange={update("evenementId")} className={inputClass}>
+            <option value="">— Aucun —</option>
+            {evenements.filter((e) => e.actif).map((ev) => <option key={ev.id} value={ev.id}>{ev.nom}</option>)}
+          </select>
         </div>
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-300">Message personnel (visible sur le formulaire)</label>

@@ -1,34 +1,39 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
 
 /* ───────────────────────────────────────────────
-   Système de design Insuffle
-   Navy/charcoal + orange chaud, minimaliste & direct
+   Système de design Insuffle — v2 Radical
+   Noir profond + jaune + bleu, Poppins, bold
+   Calqué sur insuffle.com
    ─────────────────────────────────────────────── */
 @theme {
-  /* Encres & fonds */
-  --color-ink: #15171c;          /* near-black charcoal */
-  --color-navy: #1b2540;         /* deep navy */
-  --color-navy-soft: #2a3658;
-  --color-paper: #ffffff;
-  --color-sand: #f6f4f0;         /* warm off-white sections */
-  --color-sand-deep: #ece8e1;
+  /* Fonds */
+  --color-ink: #F8FAFC;           /* texte principal (blanc cassé) */
+  --color-dark: #02040a;          /* fond principal */
+  --color-card: #0c1629;          /* cartes / sections */
+  --color-navy: #0c1629;          /* alias */
+  --color-navy-soft: #162040;
+  --color-paper: #02040a;
+  --color-sand: #060d1a;          /* sections alternées */
+  --color-sand-deep: #0a1225;
 
-  /* Accent chaud (signature Insuffle) */
-  --color-accent: #ff5a1f;       /* orange/rust */
-  --color-accent-soft: #ff7a47;
-  --color-accent-deep: #e34611;
+  /* Accent jaune (signature Insuffle v2) */
+  --color-accent: #ffde59;
+  --color-accent-soft: #ffe57a;
+  --color-accent-deep: #e6c84f;
+
+  /* Bleu primaire */
+  --color-primary: #1f3a8b;
+  --color-primary-light: #3b82f6;
 
   /* Gris de texte */
-  --color-muted: #5b6470;
-  --color-muted-soft: #8a929c;
-  --color-line: #e7e3dc;
+  --color-muted: #94a3b8;
+  --color-muted-soft: #64748b;
+  --color-line: rgba(255,255,255,0.08);
 
-  /* Polices — piles système (aucune dépendance réseau).
-     Pour activer une police custom, réintroduire next/font en prod. */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
-  --font-display: "SF Pro Display", ui-sans-serif, system-ui, -apple-system,
-    "Segoe UI", Roboto, sans-serif;
+  /* Polices */
+  --font-sans: "Poppins", sans-serif;
+  --font-display: "Poppins", sans-serif;
 }
 
 html {
@@ -37,11 +42,13 @@ html {
 
 body {
   font-family: var(--font-sans);
+  background-color: var(--color-dark);
+  color: var(--color-ink);
 }
 
 .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 /* Animations */
@@ -72,15 +79,15 @@ body {
 .delay-4 { animation-delay: 0.32s; }
 .delay-5 { animation-delay: 0.40s; }
 
-/* Champs de formulaire */
+/* Champs de formulaire — thème sombre */
 .input {
   width: 100%;
   border-radius: 0.75rem;
-  border: 1.5px solid var(--color-line);
-  background: var(--color-paper);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  background: rgba(12,22,41,0.8);
   padding: 0.7rem 0.9rem;
   font-size: 0.95rem;
-  color: var(--color-ink);
+  color: #F8FAFC;
   transition: border-color 0.2s, box-shadow 0.2s;
   outline: none;
 }
@@ -89,7 +96,7 @@ body {
 }
 .input:focus {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 4px rgba(255, 90, 31, 0.12);
+  box-shadow: 0 0 0 4px rgba(255, 222, 89, 0.12);
 }
 
 /* Soulignement accent animé */
@@ -105,7 +112,7 @@ body {
   width: 100%;
   height: 0.32em;
   background: var(--color-accent);
-  opacity: 0.25;
+  opacity: 0.35;
   z-index: -1;
   transform-origin: left;
   animation: draw-line 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getTemoignages } from "@/lib/db";
+import { getTemoignages, getTypes, getEvenements } from "@/lib/db";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Stars } from "@/components/Stars";
@@ -31,7 +31,11 @@ export default async function TemoignagePage({
   const { id } = await params;
   const temoignages = await getTemoignages();
   const t = temoignages.find((x) => x.id === id);
-  if (!t) notFound();
+  if (!t || t.publie === false) notFound();
+
+  const [types, evenements] = await Promise.all([getTypes(), getEvenements()]);
+  const typeInfo = types.find((tp) => tp.id === t.type);
+  const eventInfo = t.evenementId ? evenements.find((e) => e.id === t.evenementId) : null;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -79,7 +83,7 @@ export default async function TemoignagePage({
       {/* Auteur + détails */}
       <main className="flex-1 bg-sand">
         <div className="mx-auto max-w-3xl px-6 py-12">
-          <div className="-mt-20 rounded-2xl border border-line bg-paper p-6 shadow-[0_20px_50px_-30px_rgba(21,23,28,0.4)] md:p-8">
+          <div className="-mt-20 rounded-2xl border border-line bg-card p-6 shadow-[0_20px_50px_-30px_rgba(21,23,28,0.4)] md:p-8">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-navy font-display text-lg font-semibold text-white">
@@ -105,7 +109,7 @@ export default async function TemoignagePage({
                 {t.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="rounded-full bg-sand px-3 py-1 text-xs font-medium text-muted"
+                    className="rounded-full bg-dark px-3 py-1 text-xs font-medium text-muted"
                   >
                     #{tag}
                   </span>
@@ -114,9 +118,46 @@ export default async function TemoignagePage({
             )}
           </div>
 
+          {/* Contexte événement/type */}
+          {(eventInfo || typeInfo) && (
+            <div className="mt-6 flex flex-wrap gap-2">
+              {eventInfo && (
+                <span className="rounded-lg bg-primary/20 px-3 py-1.5 text-xs font-medium text-primary-light">
+                  {eventInfo.nom}
+                </span>
+              )}
+              {typeInfo && (
+                <span className="rounded-lg px-3 py-1.5 text-xs font-medium" style={{ backgroundColor: typeInfo.color + "22", color: typeInfo.color }}>
+                  {typeInfo.label}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Réponses personnalisées */}
+          {t.champsPersonnalises && typeInfo?.champs && typeInfo.champs.length > 0 && (
+            <div className="mt-6 space-y-4 rounded-2xl border border-line bg-dark/50 p-6">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-soft">Détail du retour</h3>
+              {typeInfo.champs.map((champ) => {
+                const val = t.champsPersonnalises?.[champ.id];
+                if (val === undefined || val === null || val === "") return null;
+                return (
+                  <div key={champ.id}>
+                    <p className="text-xs font-medium text-muted">{champ.label}</p>
+                    {champ.type === "note" && typeof val === "number" ? (
+                      <div className="mt-1"><Stars note={val} size={16} /></div>
+                    ) : (
+                      <p className="mt-1 text-sm text-ink/80">{String(val)}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* Réponse Insuffle */}
           {t.reponse && (
-            <div className="animate-fade-up mt-6 rounded-2xl border-l-4 border-accent bg-paper p-6 md:p-8">
+            <div className="animate-fade-up mt-6 rounded-2xl border-l-4 border-accent bg-card p-6 md:p-8">
               <div className="mb-3 flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-md bg-accent font-display text-xs font-bold text-white">
                   I
@@ -133,7 +174,7 @@ export default async function TemoignagePage({
           )}
 
           {/* CTA */}
-          <div className="mt-10 rounded-2xl bg-ink p-8 text-center md:p-10">
+          <div className="mt-10 rounded-2xl bg-card p-8 text-center md:p-10">
             <h2 className="font-display text-2xl font-bold text-white md:text-3xl">
               Et si c&apos;était votre tour&nbsp;?
             </h2>
@@ -142,7 +183,7 @@ export default async function TemoignagePage({
             </p>
             <a
               href="https://insuffle.com"
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-accent-soft"
+              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-primary-light"
             >
               Je passe à l&apos;action
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">

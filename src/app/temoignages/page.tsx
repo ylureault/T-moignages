@@ -12,7 +12,8 @@ export default async function TemoignagesPage({
   searchParams: Promise<{ marque?: string }>;
 }) {
   const { marque } = await searchParams;
-  let temoignages = await getTemoignages();
+  const allTemoignages = await getTemoignages();
+  let temoignages = allTemoignages.filter((t) => t.publie !== false);
 
   if (marque === "insuffle" || marque === "academie") {
     temoignages = temoignages.filter((t) => t.marque === marque);
@@ -68,7 +69,7 @@ export default async function TemoignagesPage({
       </section>
 
       {/* Filtres marque */}
-      <section className="border-b border-line bg-paper">
+      <section className="border-b border-line bg-dark">
         <div className="mx-auto flex max-w-6xl items-center gap-2 px-6 py-4">
           <FilterPill href="/temoignages" active={!marque} label="Tous" />
           <FilterPill href="/temoignages?marque=insuffle" active={marque === "insuffle"} label="Conseil" />
@@ -134,9 +135,9 @@ function FilterPill({
   return (
     <a
       href={href}
-      className={`rounded-full px-4 py-2 text-sm font-medium transition-all ${
+      className={`rounded-lg px-4 py-2 text-sm font-medium transition-all ${
         active
-          ? "bg-ink text-white"
+          ? "bg-primary text-white"
           : "text-muted hover:bg-sand-deep hover:text-ink"
       }`}
     >

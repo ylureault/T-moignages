@@ -62,6 +62,21 @@ export async function POST(request: NextRequest) {
 
   const f = (v: unknown) => (typeof v === "string" ? escapeHtml(v.trim()) : "");
   const typeLabel = f(body.type);
+  const evenementId = f(body.evenementId);
+
+  let champsHtml = "";
+  if (body.champsPersonnalises && typeof body.champsPersonnalises === "object") {
+    const entries = Object.entries(body.champsPersonnalises as Record<string, unknown>);
+    if (entries.length > 0) {
+      champsHtml = "<h3>Réponses personnalisées</h3>" +
+        entries.map(([key, val]) => {
+          const safeKey = escapeHtml(key);
+          const safeVal = typeof val === "string" ? escapeHtml(val) : typeof val === "number" ? String(val) : String(val);
+          return `<p><strong>${safeKey} :</strong> ${safeVal}</p>`;
+        }).join("");
+    }
+  }
+
   const html = `
     <h2>Nouveau témoignage à modérer</h2>
     <p><strong>Note :</strong> ${"★".repeat(note)}${"☆".repeat(5 - note)} (${note}/5)</p>
@@ -71,8 +86,10 @@ export async function POST(request: NextRequest) {
     <p><strong>Email :</strong> ${escapeHtml(email)}</p>
     <p><strong>Marque :</strong> ${f(body.marque) || "insuffle"}</p>
     ${typeLabel ? `<p><strong>Type :</strong> ${typeLabel}</p>` : ""}
+    ${evenementId ? `<p><strong>Événement :</strong> ${evenementId}</p>` : ""}
     <hr/>
     <p>${escapeHtml(contenu).replace(/\n/g, "<br/>")}</p>
+    ${champsHtml}
   `;
 
   const result = await sendEmail({

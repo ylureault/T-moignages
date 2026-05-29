@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Logo } from "@/components/Logo";
+import type { NoteStyle, ChampPersonnalise } from "@/types";
 
 type Status = "idle" | "loading" | "success" | "error";
 
@@ -12,11 +13,24 @@ interface TypeInfo {
   description: string;
   icon: string;
   color: string;
+  noteStyle: NoteStyle;
+  champs: ChampPersonnalise[];
+}
+
+interface EventInfo {
+  id: string;
+  nom: string;
+  description: string;
+  typeId: string;
+  date: string;
+  lieu?: string;
+  marque: "insuffle" | "academie";
+  actif: boolean;
 }
 
 export default function NouveauTemoignagePage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-sand"><div className="h-8 w-8 animate-spin rounded-full border-2 border-accent/30 border-t-accent" /></div>}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-dark"><div className="h-8 w-8 animate-spin rounded-full border-2 border-accent/30 border-t-accent" /></div>}>
       <NouveauTemoignageContent />
     </Suspense>
   );
@@ -27,6 +41,7 @@ function NouveauTemoignageContent() {
   const typeParam = searchParams.get("type");
   const marqueParam = searchParams.get("marque");
   const tokenParam = searchParams.get("token");
+  const eventParam = searchParams.get("event");
 
   const [note, setNote] = useState(0);
   const [hover, setHover] = useState(0);
@@ -38,23 +53,45 @@ function NouveauTemoignageContent() {
     marque: marqueParam === "academie" ? "academie" : "insuffle",
     contenu: "",
   });
+  const [champsValues, setChampsValues] = useState<Record<string, unknown>>({});
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState("");
 
   const [typeInfo, setTypeInfo] = useState<TypeInfo | null>(null);
+  const [eventInfo, setEventInfo] = useState<EventInfo | null>(null);
   const [allTypes, setAllTypes] = useState<TypeInfo[]>([]);
   const [selectedType, setSelectedType] = useState<string>(typeParam || "");
   const [typesLoaded, setTypesLoaded] = useState(false);
   const [invitationMessage, setInvitationMessage] = useState("");
   const [invitationUsed, setInvitationUsed] = useState(false);
+  const [eventInactive, setEventInactive] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
 
   useEffect(() => {
     const init = async () => {
       const typesRes = await fetch("/api/types").then((r) => r.json()).catch(() => ({ data: [] }));
-      const types: TypeInfo[] = typesRes.data || [];
+      const types: TypeInfo[] = (typesRes.data || []).map((t: TypeInfo) => ({
+        ...t,
+        noteStyle: t.noteStyle || "stars",
+        champs: t.champs || [],
+      }));
       setAllTypes(types);
 
-      if (tokenParam) {
+      if (eventParam) {
+        const evtRes = await fetch(`/api/evenements/${eventParam}`).then((r) => r.json()).catch(() => null);
+        if (evtRes?.success && evtRes.data) {
+          const evt = evtRes.data as EventInfo;
+          if (!evt.actif) { setEventInactive(true); setTypesLoaded(true); return; }
+          setEventInfo(evt);
+          setForm((f) => ({ ...f, marque: evt.marque || f.marque }));
+          setShareUrl(`${window.location.origin}/temoignages/nouveau?event=${evt.id}`);
+          if (evtRes.type) {
+            const t = { ...evtRes.type, noteStyle: evtRes.type.noteStyle || "stars", champs: evtRes.type.champs || [] };
+            setTypeInfo(t);
+            setSelectedType(t.id);
+          }
+        }
+      } else if (tokenParam) {
         const invRes = await fetch(`/api/invitations/${tokenParam}`).then((r) => r.json()).catch(() => null);
         if (invRes?.success && invRes.data) {
           const inv = invRes.data;
@@ -67,7 +104,18 @@ function NouveauTemoignageContent() {
             marque: inv.marque || f.marque,
           }));
           if (inv.message) setInvitationMessage(inv.message);
-          if (inv.type) {
+          if (inv.evenementId) {
+            const evtRes = await fetch(`/api/evenements/${inv.evenementId}`).then((r) => r.json()).catch(() => null);
+            if (evtRes?.success && evtRes.data) {
+              setEventInfo(evtRes.data);
+              setShareUrl(`${window.location.origin}/temoignages/nouveau?event=${evtRes.data.id}`);
+              if (evtRes.type) {
+                const t = { ...evtRes.type, noteStyle: evtRes.type.noteStyle || "stars", champs: evtRes.type.champs || [] };
+                setTypeInfo(t);
+                setSelectedType(t.id);
+              }
+            }
+          } else if (inv.type) {
             setSelectedType(inv.type);
             const found = types.find((t) => t.id === inv.type);
             if (found) setTypeInfo(found);
@@ -81,11 +129,15 @@ function NouveauTemoignageContent() {
       setTypesLoaded(true);
     };
     init();
-  }, [typeParam, tokenParam]);
+  }, [typeParam, tokenParam, eventParam]);
 
   const update = (k: keyof typeof form) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const updateChamp = (champId: string, value: unknown) => {
+    setChampsValues((prev) => ({ ...prev, [champId]: value }));
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -98,11 +150,29 @@ function NouveauTemoignageContent() {
       return;
     }
 
+    const requiredChamps = typeInfo?.champs.filter((c) => c.required) || [];
+    for (const champ of requiredChamps) {
+      const val = champsValues[champ.id];
+      if (!val || (typeof val === "string" && !val.trim())) {
+        setStatus("error");
+        setMessage(`Le champ "${champ.label}" est requis.`);
+        return;
+      }
+    }
+
     try {
+      const payload: Record<string, unknown> = {
+        ...form,
+        note,
+        type: selectedType === "_general" ? undefined : selectedType || undefined,
+      };
+      if (eventInfo) payload.evenementId = eventInfo.id;
+      if (Object.keys(champsValues).length > 0) payload.champsPersonnalises = champsValues;
+
       const res = await fetch("/api/temoignages/soumettre", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, note, type: selectedType || undefined }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -117,6 +187,9 @@ function NouveauTemoignageContent() {
           body: JSON.stringify({ used: true }),
         }).catch(() => {});
       }
+      if (!shareUrl && eventInfo) {
+        setShareUrl(`${window.location.origin}/temoignages/nouveau?event=${eventInfo.id}`);
+      }
       setStatus("success");
       setMessage(data.message);
     } catch {
@@ -125,12 +198,12 @@ function NouveauTemoignageContent() {
     }
   }
 
-  const labels = ["", "Décevant", "Moyen", "Correct", "Très bien", "Excellent"];
+  const noteStyle: NoteStyle = typeInfo?.noteStyle || "stars";
 
   if (invitationUsed) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-sand px-6">
-        <div className="animate-fade-up w-full max-w-md rounded-3xl border border-line bg-paper p-10 text-center">
+      <div className="flex min-h-screen items-center justify-center bg-dark px-6">
+        <div className="animate-fade-up w-full max-w-md rounded-3xl border border-line bg-card p-10 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/10">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-accent">
               <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -138,7 +211,26 @@ function NouveauTemoignageContent() {
           </div>
           <h1 className="mt-6 font-display text-2xl font-bold text-ink">Déjà complété</h1>
           <p className="mt-3 leading-relaxed text-muted">Ce lien a déjà été utilisé pour soumettre un témoignage. Merci !</p>
-          <a href="/temoignages" className="mt-8 inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3 font-semibold text-white transition-all hover:bg-accent">
+          <a href="/temoignages" className="mt-8 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:bg-primary-light">
+            Voir les témoignages
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  if (eventInactive) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-dark px-6">
+        <div className="animate-fade-up w-full max-w-md rounded-3xl border border-line bg-card p-10 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted/10">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-muted">
+              <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <h1 className="mt-6 font-display text-2xl font-bold text-ink">Collecte terminée</h1>
+          <p className="mt-3 leading-relaxed text-muted">La collecte de témoignages pour cet événement est terminée. Merci de votre intérêt !</p>
+          <a href="/temoignages" className="mt-8 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:bg-primary-light">
             Voir les témoignages
           </a>
         </div>
@@ -147,9 +239,10 @@ function NouveauTemoignageContent() {
   }
 
   if (status === "success") {
+    const currentShareUrl = shareUrl || (eventInfo ? `${window.location.origin}/temoignages/nouveau?event=${eventInfo.id}` : "");
     return (
-      <div className="flex min-h-screen items-center justify-center bg-sand px-6">
-        <div className="animate-fade-up w-full max-w-md rounded-3xl border border-line bg-paper p-10 text-center">
+      <div className="flex min-h-screen items-center justify-center bg-dark px-6">
+        <div className="animate-fade-up w-full max-w-md rounded-3xl border border-line bg-card p-10 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/10">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-accent">
               <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -157,7 +250,27 @@ function NouveauTemoignageContent() {
           </div>
           <h1 className="mt-6 font-display text-2xl font-bold text-ink">Merci infiniment&nbsp;!</h1>
           <p className="mt-3 leading-relaxed text-muted">{message}</p>
-          <a href="/temoignages" className="mt-8 inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3 font-semibold text-white transition-all hover:bg-accent">
+
+          {currentShareUrl && (
+            <div className="mt-8 rounded-2xl border border-line bg-dark/50 p-5">
+              <p className="mb-3 text-sm font-semibold text-ink">Partagez avec vos collègues</p>
+              <p className="mb-4 text-xs text-muted">Invitez-les à partager aussi leur expérience</p>
+              <div className="flex gap-2">
+                <ShareCopyButton url={currentShareUrl} />
+                <a
+                  href={`mailto:?subject=${encodeURIComponent("Partagez votre expérience")}&body=${encodeURIComponent(`Bonjour,\n\nJe viens de partager mon témoignage et je vous invite à faire de même :\n${currentShareUrl}\n\nMerci !`)}`}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink transition-all hover:bg-white/5"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Email
+                </a>
+              </div>
+            </div>
+          )}
+
+          <a href="/temoignages" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:bg-primary-light">
             Voir les témoignages
           </a>
         </div>
@@ -165,11 +278,10 @@ function NouveauTemoignageContent() {
     );
   }
 
-  // If no type selected and we have types available, show type picker
-  if (typesLoaded && !selectedType && allTypes.length > 0 && !typeParam) {
+  if (typesLoaded && !selectedType && allTypes.length > 0 && !typeParam && !eventParam) {
     return (
-      <div className="min-h-screen bg-sand">
-        <div className="border-b border-line bg-paper/85 backdrop-blur-xl">
+      <div className="min-h-screen bg-dark">
+        <div className="border-b border-line bg-dark/85 backdrop-blur-xl">
           <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-4">
             <Logo />
             <a href="/temoignages" className="text-sm font-medium text-muted transition-colors hover:text-ink">
@@ -193,10 +305,10 @@ function NouveauTemoignageContent() {
               <button
                 key={t.id}
                 onClick={() => { setSelectedType(t.id); setTypeInfo(t); }}
-                className="group rounded-2xl border border-line bg-paper p-6 text-left transition-all hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-lg"
+                className="group rounded-2xl border border-line bg-card p-6 text-left transition-all hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-lg"
               >
                 <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl text-lg" style={{ backgroundColor: t.color + "1a", color: t.color }}>
-                  {t.icon === "star" ? "★" : t.icon === "hand" ? "🤝" : t.icon === "chart" ? "📊" : t.icon === "refresh" ? "🔄" : t.icon === "compass" ? "🧭" : t.icon === "book" ? "📚" : t.icon.charAt(0).toUpperCase()}
+                  <TypeIcon icon={t.icon} />
                 </div>
                 <h3 className="font-display font-semibold text-ink transition-colors group-hover:text-accent">{t.label}</h3>
                 <p className="mt-1 text-sm text-muted">{t.description}</p>
@@ -218,9 +330,8 @@ function NouveauTemoignageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-sand">
-      {/* En-tête simple */}
-      <div className="border-b border-line bg-paper/85 backdrop-blur-xl">
+    <div className="min-h-screen bg-dark">
+      <div className="border-b border-line bg-dark/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-4">
           <Logo />
           <a href="/temoignages" className="text-sm font-medium text-muted transition-colors hover:text-ink">
@@ -231,10 +342,25 @@ function NouveauTemoignageContent() {
 
       <div className="mx-auto max-w-2xl px-6 py-12 md:py-16">
         <div className="animate-fade-up text-center">
-          {typeInfo ? (
+          {eventInfo ? (
+            <>
+              {typeInfo && (
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl text-xl" style={{ backgroundColor: typeInfo.color + "1a", color: typeInfo.color }}>
+                  <TypeIcon icon={typeInfo.icon} />
+                </div>
+              )}
+              <h1 className="font-display text-3xl font-bold leading-tight text-ink md:text-4xl">
+                {eventInfo.nom}
+              </h1>
+              <p className="mx-auto mt-3 max-w-md text-muted">{eventInfo.description || typeInfo?.description}</p>
+              {eventInfo.lieu && (
+                <p className="mt-2 text-sm text-muted-soft">{eventInfo.lieu} · {eventInfo.date}</p>
+              )}
+            </>
+          ) : typeInfo ? (
             <>
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl text-xl" style={{ backgroundColor: typeInfo.color + "1a", color: typeInfo.color }}>
-                {typeInfo.icon === "star" ? "★" : typeInfo.icon === "hand" ? "🤝" : typeInfo.icon === "chart" ? "📊" : typeInfo.icon === "refresh" ? "🔄" : typeInfo.icon === "compass" ? "🧭" : typeInfo.icon === "book" ? "📚" : typeInfo.icon.charAt(0).toUpperCase()}
+                <TypeIcon icon={typeInfo.icon} />
               </div>
               <h1 className="font-display text-3xl font-bold leading-tight text-ink md:text-4xl">
                 {typeInfo.label}
@@ -261,43 +387,23 @@ function NouveauTemoignageContent() {
 
         <form
           onSubmit={handleSubmit}
-          className="animate-fade-up delay-1 mt-10 rounded-3xl border border-line bg-paper p-6 md:p-8"
+          className="animate-fade-up delay-1 mt-10 rounded-3xl border border-line bg-card p-6 md:p-8"
         >
-          {/* Étoiles */}
+          {/* Note principale */}
           <div className="mb-8 text-center">
             <label className="mb-3 block text-sm font-semibold text-ink">
-              Votre note
+              Votre note globale
             </label>
-            <div className="flex items-center justify-center gap-1.5">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setNote(i)}
-                  onMouseEnter={() => setHover(i)}
-                  onMouseLeave={() => setHover(0)}
-                  className="transition-transform hover:scale-110"
-                  aria-label={`${i} étoile${i > 1 ? "s" : ""}`}
-                >
-                  <svg
-                    width="38"
-                    height="38"
-                    viewBox="0 0 20 20"
-                    fill={i <= (hover || note) ? "var(--color-accent)" : "none"}
-                    stroke={i <= (hover || note) ? "var(--color-accent)" : "var(--color-line)"}
-                    strokeWidth={1.5}
-                  >
-                    <path d="M10 1.5l2.6 5.3 5.9.85-4.25 4.15 1 5.85L10 14.9l-5.25 2.8 1-5.85L1.5 7.65l5.9-.85L10 1.5z" />
-                  </svg>
-                </button>
-              ))}
-            </div>
-            <p className="mt-2 h-5 text-sm font-medium text-accent">
-              {labels[hover || note]}
-            </p>
+            <NoteInput
+              style={noteStyle}
+              value={note}
+              hover={hover}
+              onChange={setNote}
+              onHover={setHover}
+            />
           </div>
 
-          {/* Champs */}
+          {/* Champs standard */}
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Nom complet" required>
               <input
@@ -338,17 +444,18 @@ function NouveauTemoignageContent() {
             </Field>
           </div>
 
-          <div className="mt-5">
-            <Field label="À quel sujet ?">
-              <select value={form.marque} onChange={update("marque")} className="input">
-                <option value="insuffle">Conseil & accompagnement (Insuffle)</option>
-                <option value="academie">Formation (Insuffle Académie)</option>
-              </select>
-            </Field>
-          </div>
+          {!eventInfo && (
+            <div className="mt-5">
+              <Field label="À quel sujet ?">
+                <select value={form.marque} onChange={update("marque")} className="input">
+                  <option value="insuffle">Conseil & accompagnement (Insuffle)</option>
+                  <option value="academie">Formation (Insuffle Académie)</option>
+                </select>
+              </Field>
+            </div>
+          )}
 
-          {/* Type selector — only if not already set from URL */}
-          {!typeParam && allTypes.length > 0 && (
+          {!typeParam && !eventParam && allTypes.length > 0 && (
             <div className="mt-5">
               <Field label="Type de témoignage">
                 <select
@@ -357,6 +464,7 @@ function NouveauTemoignageContent() {
                     setSelectedType(e.target.value);
                     const found = allTypes.find((t) => t.id === e.target.value);
                     setTypeInfo(found || null);
+                    setChampsValues({});
                   }}
                   className="input"
                 >
@@ -366,6 +474,24 @@ function NouveauTemoignageContent() {
                   ))}
                 </select>
               </Field>
+            </div>
+          )}
+
+          {/* Champs personnalisés du type */}
+          {typeInfo && typeInfo.champs.length > 0 && (
+            <div className="mt-8 space-y-5 border-t border-line pt-8">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-soft">
+                Questions spécifiques
+              </p>
+              {typeInfo.champs.map((champ) => (
+                <ChampField
+                  key={champ.id}
+                  champ={champ}
+                  noteStyle={noteStyle}
+                  value={champsValues[champ.id]}
+                  onChange={(val) => updateChamp(champ.id, val)}
+                />
+              ))}
             </div>
           )}
 
@@ -388,7 +514,7 @@ function NouveauTemoignageContent() {
           </div>
 
           {status === "error" && (
-            <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            <p className="mt-4 rounded-xl bg-red-500/20 px-4 py-3 text-sm font-medium text-red-300">
               {message}
             </p>
           )}
@@ -396,7 +522,7 @@ function NouveauTemoignageContent() {
           <button
             type="submit"
             disabled={status === "loading"}
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-ink px-6 py-4 font-semibold text-white transition-all hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-4 font-semibold text-white transition-all hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-60"
           >
             {status === "loading" ? (
               <>
@@ -421,6 +547,310 @@ function NouveauTemoignageContent() {
   );
 }
 
+// ─── Note Input Variants ─────────────────────────────────────
+function NoteInput({
+  style,
+  value,
+  hover,
+  onChange,
+  onHover,
+}: {
+  style: NoteStyle;
+  value: number;
+  hover: number;
+  onChange: (n: number) => void;
+  onHover: (n: number) => void;
+}) {
+  if (style === "smileys") return <SmileyInput value={value} onChange={onChange} />;
+  if (style === "scale") return <ScaleInput value={value} onChange={onChange} />;
+  if (style === "thumbs") return <ThumbsInput value={value} onChange={onChange} />;
+  return <StarsInput value={value} hover={hover} onChange={onChange} onHover={onHover} />;
+}
+
+function StarsInput({ value, hover, onChange, onHover }: { value: number; hover: number; onChange: (n: number) => void; onHover: (n: number) => void }) {
+  const labels = ["", "Décevant", "Moyen", "Correct", "Très bien", "Excellent"];
+  return (
+    <div>
+      <div className="flex items-center justify-center gap-1.5">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onChange(i)}
+            onMouseEnter={() => onHover(i)}
+            onMouseLeave={() => onHover(0)}
+            className="transition-transform hover:scale-110"
+            aria-label={`${i} étoile${i > 1 ? "s" : ""}`}
+          >
+            <svg
+              width="38"
+              height="38"
+              viewBox="0 0 20 20"
+              fill={i <= (hover || value) ? "var(--color-accent)" : "none"}
+              stroke={i <= (hover || value) ? "var(--color-accent)" : "var(--color-line)"}
+              strokeWidth={1.5}
+            >
+              <path d="M10 1.5l2.6 5.3 5.9.85-4.25 4.15 1 5.85L10 14.9l-5.25 2.8 1-5.85L1.5 7.65l5.9-.85L10 1.5z" />
+            </svg>
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 h-5 text-sm font-medium text-accent">
+        {labels[hover || value]}
+      </p>
+    </div>
+  );
+}
+
+function SmileyInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const smileys = [
+    { emoji: "😡", label: "Très insatisfait", color: "#ef4444" },
+    { emoji: "😕", label: "Insatisfait", color: "#f97316" },
+    { emoji: "😐", label: "Neutre", color: "#eab308" },
+    { emoji: "🙂", label: "Satisfait", color: "#22c55e" },
+    { emoji: "😊", label: "Très satisfait", color: "#10b981" },
+  ];
+  return (
+    <div>
+      <div className="flex items-center justify-center gap-3">
+        {smileys.map((s, i) => {
+          const n = i + 1;
+          const active = value === n;
+          return (
+            <button
+              key={n}
+              type="button"
+              onClick={() => onChange(n)}
+              className={`flex h-14 w-14 items-center justify-center rounded-2xl text-2xl transition-all ${
+                active
+                  ? "scale-110"
+                  : "opacity-50 hover:opacity-80 hover:scale-105"
+              }`}
+              style={active ? { backgroundColor: s.color + "22", outlineColor: s.color, outlineWidth: 2, outlineStyle: "solid" } : {}}
+              aria-label={s.label}
+            >
+              {s.emoji}
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-2 h-5 text-sm font-medium text-accent">
+        {value > 0 ? smileys[value - 1].label : ""}
+      </p>
+    </div>
+  );
+}
+
+function ScaleInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const mapped = value === 0 ? 0 : Math.round(value * 2);
+  const setFromScale = (n: number) => onChange(Math.max(1, Math.min(5, Math.round(n / 2))));
+
+  return (
+    <div>
+      <div className="flex items-center justify-center gap-1">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => setFromScale(n)}
+            className={`flex h-10 w-10 items-center justify-center rounded-lg text-sm font-bold transition-all ${
+              n <= mapped
+                ? "bg-accent text-dark"
+                : "bg-white/5 text-muted hover:bg-white/10"
+            }`}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+      <div className="mt-2 flex justify-between text-xs text-muted-soft">
+        <span>Pas du tout</span>
+        <span>Excellent</span>
+      </div>
+    </div>
+  );
+}
+
+function ThumbsInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <div>
+      <div className="flex items-center justify-center gap-6">
+        <button
+          type="button"
+          onClick={() => onChange(2)}
+          className={`flex h-16 w-16 items-center justify-center rounded-2xl text-3xl transition-all ${
+            value === 2
+              ? "scale-110 bg-red-500/20 ring-2 ring-red-500 ring-offset-2 ring-offset-dark"
+              : "bg-white/5 opacity-50 hover:opacity-80 hover:scale-105"
+          }`}
+          aria-label="Non recommandé"
+        >
+          👎
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(5)}
+          className={`flex h-16 w-16 items-center justify-center rounded-2xl text-3xl transition-all ${
+            value === 5
+              ? "scale-110 bg-emerald-500/20 ring-2 ring-emerald-500 ring-offset-2 ring-offset-dark"
+              : "bg-white/5 opacity-50 hover:opacity-80 hover:scale-105"
+          }`}
+          aria-label="Recommandé"
+        >
+          👍
+        </button>
+      </div>
+      <p className="mt-2 h-5 text-sm font-medium text-accent">
+        {value === 2 ? "Non recommandé" : value === 5 ? "Recommandé" : ""}
+      </p>
+    </div>
+  );
+}
+
+// ─── Mini Note Input (for custom fields of type "note") ──────
+function MiniNoteInput({ style, value, onChange }: { style: NoteStyle; value: number; onChange: (n: number) => void }) {
+  if (style === "smileys") {
+    const smileys = ["😡", "😕", "😐", "🙂", "😊"];
+    return (
+      <div className="flex items-center gap-2">
+        {smileys.map((s, i) => {
+          const n = i + 1;
+          return (
+            <button
+              key={n}
+              type="button"
+              onClick={() => onChange(n)}
+              className={`flex h-10 w-10 items-center justify-center rounded-xl text-lg transition-all ${
+                value === n ? "scale-110 bg-accent/20 ring-1 ring-accent" : "opacity-40 hover:opacity-70"
+              }`}
+            >
+              {s}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={() => onChange(i)}
+          className="transition-transform hover:scale-110"
+        >
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 20 20"
+            fill={i <= value ? "var(--color-accent)" : "none"}
+            stroke={i <= value ? "var(--color-accent)" : "var(--color-line)"}
+            strokeWidth={1.5}
+          >
+            <path d="M10 1.5l2.6 5.3 5.9.85-4.25 4.15 1 5.85L10 14.9l-5.25 2.8 1-5.85L1.5 7.65l5.9-.85L10 1.5z" />
+          </svg>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Custom Field Renderer ───────────────────────────────────
+function ChampField({
+  champ,
+  noteStyle,
+  value,
+  onChange,
+}: {
+  champ: ChampPersonnalise;
+  noteStyle: NoteStyle;
+  value: unknown;
+  onChange: (val: unknown) => void;
+}) {
+  if (champ.type === "note") {
+    return (
+      <div>
+        <label className="mb-2 block text-sm font-medium text-ink">
+          {champ.label}
+          {champ.required && <span className="text-accent"> *</span>}
+        </label>
+        <MiniNoteInput
+          style={noteStyle}
+          value={typeof value === "number" ? value : 0}
+          onChange={onChange}
+        />
+      </div>
+    );
+  }
+
+  if (champ.type === "select") {
+    return (
+      <Field label={champ.label} required={champ.required}>
+        <select
+          value={typeof value === "string" ? value : ""}
+          onChange={(e) => onChange(e.target.value)}
+          className="input"
+          required={champ.required}
+        >
+          <option value="">— Choisir —</option>
+          {(champ.options || []).map((opt) => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+      </Field>
+    );
+  }
+
+  if (champ.type === "checkbox") {
+    return (
+      <label className="flex items-center gap-3">
+        <input
+          type="checkbox"
+          checked={!!value}
+          onChange={(e) => onChange(e.target.checked)}
+          className="h-5 w-5 rounded border-line bg-dark text-accent focus:ring-accent/20"
+        />
+        <span className="text-sm font-medium text-ink">
+          {champ.label}
+          {champ.required && <span className="text-accent"> *</span>}
+        </span>
+      </label>
+    );
+  }
+
+  if (champ.type === "textarea") {
+    return (
+      <Field label={champ.label} required={champ.required}>
+        <textarea
+          value={typeof value === "string" ? value : ""}
+          onChange={(e) => onChange(e.target.value)}
+          rows={3}
+          maxLength={2000}
+          className="input resize-none"
+          placeholder={champ.placeholder}
+          required={champ.required}
+        />
+      </Field>
+    );
+  }
+
+  return (
+    <Field label={champ.label} required={champ.required}>
+      <input
+        value={typeof value === "string" ? value : ""}
+        onChange={(e) => onChange(e.target.value)}
+        maxLength={500}
+        className="input"
+        placeholder={champ.placeholder}
+        required={champ.required}
+      />
+    </Field>
+  );
+}
+
+// ─── Shared Components ───────────────────────────────────────
 function Field({
   label,
   required,
@@ -438,5 +868,34 @@ function Field({
       </span>
       {children}
     </label>
+  );
+}
+
+function TypeIcon({ icon }: { icon: string }) {
+  const map: Record<string, string> = {
+    star: "★", hand: "🤝", chart: "📊", refresh: "🔄",
+    compass: "🧭", book: "📚", heart: "❤️", trophy: "🏆",
+    users: "👥", mic: "🎤", rocket: "🚀", flag: "🏁",
+  };
+  return <span>{map[icon] || icon.charAt(0).toUpperCase()}</span>;
+}
+
+function ShareCopyButton({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(url).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        });
+      }}
+      className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-primary-light"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+      </svg>
+      {copied ? "Copié !" : "Copier le lien"}
+    </button>
   );
 }

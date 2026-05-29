@@ -10,6 +10,11 @@ export async function GET(request: NextRequest) {
 
   let results = await getTemoignages();
 
+  const isAdmin = !!request.headers.get("x-api-key");
+  if (!isAdmin) {
+    results = results.filter((t) => t.publie !== false);
+  }
+
   const type = searchParams.get("type");
   if (type) {
     results = results.filter((t) => t.type === type);
@@ -133,6 +138,9 @@ export async function POST(request: NextRequest) {
     date: body.date || new Date().toISOString().split("T")[0],
     recommande: body.recommande ?? true,
     ...(body.heroImage ? { heroImage: body.heroImage } : {}),
+    ...(body.evenementId ? { evenementId: body.evenementId } : {}),
+    ...(body.champsPersonnalises ? { champsPersonnalises: body.champsPersonnalises } : {}),
+    publie: body.publie ?? true,
   };
 
   const result = validateTemoignage(candidate);

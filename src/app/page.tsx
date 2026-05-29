@@ -7,7 +7,8 @@ import { Stars } from "@/components/Stars";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const temoignages = await getTemoignages();
+  const allTemoignages = await getTemoignages();
+  const temoignages = allTemoignages.filter((t) => t.publie !== false);
   const moyenne =
     temoignages.length > 0
       ? temoignages.reduce((s, t) => s + t.note, 0) / temoignages.length
@@ -44,7 +45,7 @@ export default async function Home() {
           <div className="animate-fade-up delay-3 mt-10 flex flex-wrap items-center justify-center gap-3">
             <a
               href="/temoignages"
-              className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3.5 font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-accent-soft"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3.5 font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-primary-light"
             >
               Lire les témoignages
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -53,7 +54,7 @@ export default async function Home() {
             </a>
             <a
               href="/temoignages/nouveau"
-              className="inline-flex items-center gap-2 rounded-full border border-white/20 px-6 py-3.5 font-semibold text-white transition-all hover:bg-white/10"
+              className="inline-flex items-center gap-2 rounded-lg border border-white/20 px-6 py-3.5 font-semibold text-white transition-all hover:bg-white/10"
             >
               Laisser un avis
             </a>

@@ -19,11 +19,23 @@ export interface Temoignage {
   verifie: boolean;
   date: string;
   recommande: boolean;
-  /** Image de fond optionnelle du hero (URL d'upload), affichée en alpha. */
   heroImage?: string;
-  /** Marque associée : "insuffle" (conseil) ou "academie" (formations). */
   marque: "insuffle" | "academie";
+  evenementId?: string;
+  champsPersonnalises?: Record<string, unknown>;
+  publie: boolean;
 }
+
+export interface ChampPersonnalise {
+  id: string;
+  label: string;
+  type: "text" | "textarea" | "note" | "select" | "checkbox";
+  required?: boolean;
+  placeholder?: string;
+  options?: string[];
+}
+
+export type NoteStyle = "stars" | "smileys" | "scale" | "thumbs";
 
 export interface TypeTemoignage {
   id: string;
@@ -31,6 +43,20 @@ export interface TypeTemoignage {
   description: string;
   icon: string;
   color: string;
+  noteStyle: NoteStyle;
+  champs: ChampPersonnalise[];
+}
+
+export interface Evenement {
+  id: string;
+  nom: string;
+  description: string;
+  typeId: string;
+  date: string;
+  lieu?: string;
+  marque: "insuffle" | "academie";
+  createdAt: string;
+  actif: boolean;
 }
 
 export interface Invitation {
@@ -39,6 +65,7 @@ export interface Invitation {
   email: string;
   entreprise: string;
   type: string;
+  evenementId?: string;
   marque: "insuffle" | "academie";
   message: string;
   createdAt: string;
