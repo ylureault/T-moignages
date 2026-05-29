@@ -18,7 +18,7 @@ import path from "path";
  *   BACKUP_GITHUB_PATH    défaut: "backups/data.json"
  */
 
-const DATA_DIR = path.join(process.cwd(), "data");
+const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 const BACKUP_DIR = path.join(DATA_DIR, "backups");
 const MAX_LOCAL_SNAPSHOTS = 30;
 

@@ -4,7 +4,7 @@ import { randomBytes } from "crypto";
 import type { Temoignage, TypeTemoignage, Invitation, Evenement } from "@/types";
 import { backupNow, readLatestLocalSnapshot, readRemoteBackup, type FullBackup } from "./persist";
 
-const DATA_DIR = path.join(process.cwd(), "data");
+const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 const TEMOIGNAGES_FILE = path.join(DATA_DIR, "temoignages.json");
 const TYPES_FILE = path.join(DATA_DIR, "types.json");
 const INVITATIONS_FILE = path.join(DATA_DIR, "invitations.json");

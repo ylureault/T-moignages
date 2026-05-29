@@ -25,6 +25,13 @@ function apiFetch(path: string, opts: RequestInit = {}) {
         ? {}
         : { "Content-Type": "application/json" }),
     },
+  }).then((res) => {
+    // Session expirée/invalide : on prévient l'app pour re-demander le login
+    // (évite qu'une modif échoue en silence ou que des données semblent "disparues").
+    if (res.status === 401 && typeof window !== "undefined") {
+      window.dispatchEvent(new Event("admin-unauthorized"));
+    }
+    return res;
   });
 }
 
@@ -77,6 +84,13 @@ export default function AdminPage() {
       .then((r) => r.json())
       .then((d) => { if (d.authenticated) setAuthenticated(true); setChecking(false); })
       .catch(() => setChecking(false));
+  }, []);
+
+  // Si une requête admin renvoie 401 (session expirée), on repasse en login.
+  useEffect(() => {
+    const onUnauthorized = () => { setAuthenticated(false); setAuthError("Session expirée, reconnectez-vous."); };
+    window.addEventListener("admin-unauthorized", onUnauthorized);
+    return () => window.removeEventListener("admin-unauthorized", onUnauthorized);
   }, []);
 
   async function handleLogin(e: React.FormEvent) {
