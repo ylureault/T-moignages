@@ -87,8 +87,11 @@ export async function GET(request: NextRequest) {
   });
 
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+  // L'admin authentifié peut tout récupérer (back-office) ; le public reste
+  // plafonné à 50 par page pour limiter la charge.
+  const maxLimit = admin ? 100000 : 50;
   const limit = Math.min(
-    50,
+    maxLimit,
     Math.max(1, parseInt(searchParams.get("limit") || "10", 10))
   );
   const total = results.length;

@@ -280,7 +280,7 @@ function DashboardView({ onNav }: { onNav: (v: View) => void }) {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/temoignages?limit=50").then((r) => r.json()),
+      fetch("/api/temoignages?limit=100000").then((r) => r.json()),
       apiFetch("/api/evenements").then((r) => r.json()),
     ]).then(([td, ev]) => {
       setTemoignages(td.data || []);
@@ -399,7 +399,7 @@ function TemoignagesView() {
   const loadData = useCallback(() => {
     setLoading(true);
     Promise.all([
-      fetch("/api/temoignages?limit=50").then((r) => r.json()),
+      fetch("/api/temoignages?limit=100000").then((r) => r.json()),
       fetch("/api/types").then((r) => r.json()),
       apiFetch("/api/evenements").then((r) => r.json()),
     ]).then(([td, tp, ev]) => {
@@ -1387,7 +1387,7 @@ function EvenementsView() {
     Promise.all([
       apiFetch("/api/evenements").then((r) => r.json()),
       fetch("/api/types").then((r) => r.json()),
-      fetch("/api/temoignages?limit=200").then((r) => r.json()),
+      fetch("/api/temoignages?limit=100000").then((r) => r.json()),
     ]).then(([ev, tp, tm]) => {
       setEvenements(ev.data || []);
       setTypes(tp.data || []);
