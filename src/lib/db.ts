@@ -3,12 +3,40 @@ import path from "path";
 import { randomBytes } from "crypto";
 import type { Temoignage, TypeTemoignage } from "@/types";
 
-const DATA_DIR = path.join(process.cwd(), "src", "data");
+const DATA_DIR = path.join(process.cwd(), "data");
 const TEMOIGNAGES_FILE = path.join(DATA_DIR, "temoignages.json");
 const TYPES_FILE = path.join(DATA_DIR, "types.json");
 
-// Verrou en mémoire pour sérialiser les écritures (évite les écritures concurrentes
-// qui se chevauchent et corrompent le JSON).
+const DEFAULT_TYPES: TypeTemoignage[] = [
+  { id: "satisfaction-client", label: "Satisfaction client", description: "Avis liés à la qualité du service et la satisfaction globale", icon: "star", color: "#14b8a6" },
+  { id: "accompagnement", label: "Accompagnement", description: "Retours sur la qualité de l'accompagnement et du suivi", icon: "hand", color: "#3b82f6" },
+  { id: "resultats", label: "Résultats obtenus", description: "Témoignages axés sur les résultats concrets et mesurables", icon: "chart", color: "#10b981" },
+  { id: "transformation", label: "Transformation organisationnelle", description: "Retours sur les changements structurels et culturels observés", icon: "refresh", color: "#8b5cf6" },
+  { id: "diagnostic", label: "Diagnostic Boussole 4C", description: "Avis spécifiques à l'outil de diagnostic Boussole 4C", icon: "compass", color: "#f59e0b" },
+  { id: "formation", label: "Formation & Coaching", description: "Témoignages liés aux formations et séances de coaching", icon: "book", color: "#ec4899" },
+];
+
+let initialized = false;
+
+async function ensureDataDir(): Promise<void> {
+  if (initialized) return;
+  await fs.mkdir(DATA_DIR, { recursive: true });
+
+  try {
+    await fs.access(TEMOIGNAGES_FILE);
+  } catch {
+    await fs.writeFile(TEMOIGNAGES_FILE, "[]", "utf-8");
+  }
+
+  try {
+    await fs.access(TYPES_FILE);
+  } catch {
+    await fs.writeFile(TYPES_FILE, JSON.stringify(DEFAULT_TYPES, null, 2), "utf-8");
+  }
+
+  initialized = true;
+}
+
 const locks = new Map<string, Promise<unknown>>();
 
 async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
@@ -22,16 +50,13 @@ async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
 }
 
 async function readJSON<T>(filePath: string): Promise<T> {
+  await ensureDataDir();
   const raw = await fs.readFile(filePath, "utf-8");
   return JSON.parse(raw) as T;
 }
 
-/**
- * Écriture atomique : on écrit dans un fichier temporaire puis on le renomme.
- * Le rename est atomique sur le même système de fichiers, donc le fichier final
- * n'est jamais partiellement écrit (pas de corruption en cas de crash).
- */
 async function writeJSON<T>(filePath: string, data: T): Promise<void> {
+  await ensureDataDir();
   const tmp = `${filePath}.${randomBytes(6).toString("hex")}.tmp`;
   const payload = JSON.stringify(data, null, 2);
   try {

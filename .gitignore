@@ -4,6 +4,9 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 
+# Données live — JAMAIS dans le repo (survit aux déploiements)
+/data/
+
 # Secrets - JAMAIS dans le repo
 .env
 .env.local
