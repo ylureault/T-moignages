@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { getTemoignages, getTypes, getEvenements } from "@/lib/db";
+import { verifySessionToken } from "@/lib/auth";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Stars } from "@/components/Stars";
@@ -42,7 +44,12 @@ export default async function TemoignagePage({
   const { anon, mode } = await searchParams;
   const temoignages = await getTemoignages();
   const t = temoignages.find((x) => x.id === id);
-  if (!t || t.publie === false) notFound();
+
+  // L'admin connecté peut prévisualiser une citation même non publiée ;
+  // le public reçoit 404 tant que le témoignage n'est pas publié.
+  const store = await cookies();
+  const viewerIsAdmin = verifySessionToken(store.get("admin_session")?.value);
+  if (!t || (t.publie === false && !viewerIsAdmin)) notFound();
 
   const [types, evenements] = await Promise.all([getTypes(), getEvenements()]);
   const typeInfo = types.find((tp) => tp.id === t.type);

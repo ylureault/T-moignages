@@ -88,3 +88,8 @@ export function requireAuth(request: NextRequest): NextResponse | null {
 export function isAdmin(request: NextRequest): boolean {
   return isValidSession(request);
 }
+
+/** Vérifie un jeton de session brut (pour les Server Components via cookies()). */
+export function verifySessionToken(token: string | undefined | null): boolean {
+  return token ? verifyToken(token) : false;
+}

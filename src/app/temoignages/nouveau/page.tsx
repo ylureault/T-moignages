@@ -143,6 +143,8 @@ function NouveauTemoignageContent() {
 
   // Thème selon la marque : Académie = univers violet/or + police Outfit.
   const themeClass = form.marque === "academie" ? "theme-academie" : "";
+  // Site de la marque (pas de vitrine publique d'avis : on renvoie au site).
+  const siteUrl = form.marque === "academie" ? "https://insuffle-academie.com" : "https://insuffle.com";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -216,8 +218,8 @@ function NouveauTemoignageContent() {
           </div>
           <h1 className="mt-6 font-display text-2xl font-bold text-ink">Déjà complété</h1>
           <p className="mt-3 leading-relaxed text-muted">Ce lien a déjà été utilisé pour soumettre un témoignage. Merci !</p>
-          <a href="/temoignages" className="mt-8 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:bg-primary-light">
-            Voir les témoignages
+          <a href={siteUrl} className="mt-8 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:bg-primary-light">
+            Retour au site
           </a>
         </div>
       </div>
@@ -235,8 +237,8 @@ function NouveauTemoignageContent() {
           </div>
           <h1 className="mt-6 font-display text-2xl font-bold text-ink">Collecte terminée</h1>
           <p className="mt-3 leading-relaxed text-muted">La collecte de témoignages pour cet événement est terminée. Merci de votre intérêt !</p>
-          <a href="/temoignages" className="mt-8 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:bg-primary-light">
-            Voir les témoignages
+          <a href={siteUrl} className="mt-8 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:bg-primary-light">
+            Retour au site
           </a>
         </div>
       </div>
@@ -275,8 +277,8 @@ function NouveauTemoignageContent() {
             </div>
           )}
 
-          <a href="/temoignages" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:bg-primary-light">
-            Voir les témoignages
+          <a href={siteUrl} className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:bg-primary-light">
+            Retour au site
           </a>
         </div>
       </div>
@@ -289,7 +291,7 @@ function NouveauTemoignageContent() {
         <div className="border-b border-line bg-dark/85 backdrop-blur-xl">
           <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-4">
             <Logo />
-            <a href="/temoignages" className="text-sm font-medium text-muted transition-colors hover:text-ink">
+            <a href={siteUrl} className="text-sm font-medium text-muted transition-colors hover:text-ink">
               Retour
             </a>
           </div>
@@ -339,7 +341,7 @@ function NouveauTemoignageContent() {
       <div className="border-b border-line bg-dark/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
           <Logo />
-          <a href="/temoignages" className="text-sm font-medium text-muted transition-colors hover:text-ink">
+          <a href={siteUrl} className="text-sm font-medium text-muted transition-colors hover:text-ink">
             Retour
           </a>
         </div>

@@ -26,10 +26,21 @@ function apiFetch(path: string, opts: RequestInit = {}) {
         : { "Content-Type": "application/json" }),
     },
   }).then((res) => {
-    // Session expirée/invalide : on prévient l'app pour re-demander le login
-    // (évite qu'une modif échoue en silence ou que des données semblent "disparues").
-    if (res.status === 401 && typeof window !== "undefined") {
-      window.dispatchEvent(new Event("admin-unauthorized"));
+    if (typeof window !== "undefined") {
+      // Session expirée/invalide → re-login (évite qu'une modif échoue en silence).
+      if (res.status === 401) {
+        window.dispatchEvent(new Event("admin-unauthorized"));
+      }
+      // Confirmation visuelle après une écriture réussie.
+      const method = (opts.method || "GET").toUpperCase();
+      const isMutation = method === "POST" || method === "PUT" || method === "DELETE";
+      if (res.ok && isMutation && !path.startsWith("/api/auth")) {
+        const label =
+          method === "DELETE" ? "Supprimé"
+          : path.includes("/api/upload") ? "Image téléversée"
+          : "Enregistré";
+        window.dispatchEvent(new CustomEvent("admin-toast", { detail: label }));
+      }
     }
     return res;
   });
@@ -172,6 +183,19 @@ function AdminShell({ onLogout }: { onLogout: () => void }) {
   const [view, setView] = useState<View>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  // Affiche une confirmation à chaque enregistrement (émis par apiFetch).
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const onToast = (e: Event) => {
+      setToast((e as CustomEvent).detail || "Enregistré");
+      clearTimeout(timer);
+      timer = setTimeout(() => setToast(null), 2500);
+    };
+    window.addEventListener("admin-toast", onToast);
+    return () => { window.removeEventListener("admin-toast", onToast); clearTimeout(timer); };
+  }, []);
 
   const navItems: { id: View; label: string; icon: string }[] = [
     { id: "dashboard", label: "Tableau de bord", icon: ICONS.dashboard },
@@ -189,6 +213,16 @@ function AdminShell({ onLogout }: { onLogout: () => void }) {
 
   return (
     <div className="flex min-h-screen">
+      {/* Toast de confirmation (enregistrements) */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 animate-fade-up">
+          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-2.5 text-sm font-medium text-emerald-300 shadow-lg backdrop-blur-md">
+            <Icon d={ICONS.check} className="w-4 h-4" />
+            {toast}
+          </div>
+        </div>
+      )}
+
       {/* Mobile top bar */}
       <div className="fixed inset-x-0 top-0 z-40 flex items-center justify-between border-b border-slate-800/50 bg-slate-900/95 px-4 py-3 backdrop-blur-xl md:hidden">
         <div className="flex items-center gap-3">
