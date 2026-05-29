@@ -1500,6 +1500,12 @@ function EvenementsView() {
                 <div className="mb-3 flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <h3 className="font-semibold text-white">{evt.nom}</h3>
+                    {evt.entreprise && (
+                      <p className="mt-0.5 flex items-center gap-1 text-sm font-medium text-teal-400">
+                        <Icon d={ICONS.userAnon} className="w-3.5 h-3.5" />
+                        {evt.entreprise}
+                      </p>
+                    )}
                     <p className="mt-0.5 text-xs text-slate-500">{evt.id}</p>
                   </div>
                   <span className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium ${evt.actif ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700/50 text-slate-500"}`}>
