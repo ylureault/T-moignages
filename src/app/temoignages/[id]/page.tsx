@@ -54,10 +54,15 @@ export default async function TemoignagePage({
     ? (t.auteur.trim().charAt(0) || "?").toUpperCase()
     : initials(t.auteur);
 
+  // Thème selon la marque : Académie = univers violet/or + police Outfit.
+  const isAcademie = t.marque === "academie";
+  const themeClass = isAcademie ? "theme-academie" : "";
+  const marqueLabel = isAcademie ? "Insuffle Académie" : "Insuffle · Clarté Vivante";
+
   // ── Mode citation pleine page (partageable) ──────────────────
   if (mode === "quote") {
     return (
-      <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-navy px-6 py-16 text-center">
+      <div className={`${themeClass} relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-navy px-6 py-16 text-center`}>
         <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />
         <div className="absolute -bottom-40 -left-20 h-96 w-96 rounded-full bg-accent/10 blur-3xl" />
         <div className="relative mx-auto max-w-3xl">
@@ -81,7 +86,7 @@ export default async function TemoignagePage({
             </div>
           </div>
           <div className="mt-12">
-            <p className="text-xs uppercase tracking-widest text-white/40">Insuffle · Clarté Vivante</p>
+            <p className="text-xs uppercase tracking-widest text-white/40">{marqueLabel}</p>
           </div>
         </div>
       </div>
@@ -89,7 +94,7 @@ export default async function TemoignagePage({
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className={`${themeClass} flex min-h-screen flex-col`}>
       <SiteHeader />
 
       {/* Hero banner avec image de fond en alpha */}

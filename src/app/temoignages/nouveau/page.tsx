@@ -141,6 +141,9 @@ function NouveauTemoignageContent() {
     setChampsValues((prev) => ({ ...prev, [champId]: value }));
   };
 
+  // Thème selon la marque : Académie = univers violet/or + police Outfit.
+  const themeClass = form.marque === "academie" ? "theme-academie" : "";
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("loading");
@@ -204,7 +207,7 @@ function NouveauTemoignageContent() {
 
   if (invitationUsed) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-dark px-6">
+      <div className={`${themeClass} flex min-h-screen items-center justify-center bg-dark px-6`}>
         <div className="animate-fade-up w-full max-w-md rounded-3xl border border-line bg-card p-10 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/10">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-accent">
@@ -223,7 +226,7 @@ function NouveauTemoignageContent() {
 
   if (eventInactive) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-dark px-6">
+      <div className={`${themeClass} flex min-h-screen items-center justify-center bg-dark px-6`}>
         <div className="animate-fade-up w-full max-w-md rounded-3xl border border-line bg-card p-10 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted/10">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-muted">
@@ -243,7 +246,7 @@ function NouveauTemoignageContent() {
   if (status === "success") {
     const currentShareUrl = shareUrl || (eventInfo ? `${window.location.origin}/temoignages/nouveau?event=${eventInfo.id}` : "");
     return (
-      <div className="flex min-h-screen items-center justify-center bg-dark px-6">
+      <div className={`${themeClass} flex min-h-screen items-center justify-center bg-dark px-6`}>
         <div className="animate-fade-up w-full max-w-md rounded-3xl border border-line bg-card p-10 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/10">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-accent">
@@ -282,7 +285,7 @@ function NouveauTemoignageContent() {
 
   if (typesLoaded && !selectedType && allTypes.length > 0 && !typeParam && !eventParam) {
     return (
-      <div className="min-h-screen bg-dark">
+      <div className={`${themeClass} min-h-screen bg-dark`}>
         <div className="border-b border-line bg-dark/85 backdrop-blur-xl">
           <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-4">
             <Logo />
@@ -332,7 +335,7 @@ function NouveauTemoignageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-dark">
+    <div className={`${themeClass} min-h-screen bg-dark`}>
       <div className="border-b border-line bg-dark/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
           <Logo />
