@@ -1,25 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import temoignagesData from "@/data/temoignages.json";
+import { getTemoignages, saveTemoignages, generateId } from "@/lib/db";
+import { requireApiKey } from "@/lib/auth";
 import type { Temoignage } from "@/types";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
 
-  let results: Temoignage[] = temoignagesData as Temoignage[];
+  let results = await getTemoignages();
 
-  // Filtre par type
   const type = searchParams.get("type");
   if (type) {
     results = results.filter((t) => t.type === type);
   }
 
-  // Filtre par source (google, trustpilot, linkedin...)
   const source = searchParams.get("source");
   if (source) {
     results = results.filter((t) => t.source === source);
   }
 
-  // Filtre par note minimum
   const noteMin = searchParams.get("note_min");
   if (noteMin) {
     const min = parseInt(noteMin, 10);
@@ -28,7 +28,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Filtre par tag
   const tag = searchParams.get("tag");
   if (tag) {
     results = results.filter((t) =>
@@ -36,13 +35,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Filtre par vérifié uniquement
   const verifie = searchParams.get("verifie");
   if (verifie === "true") {
     results = results.filter((t) => t.verifie);
   }
 
-  // Recherche texte dans contenu ou auteur
   const q = searchParams.get("q");
   if (q) {
     const search = q.toLowerCase();
@@ -54,7 +51,6 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Tri
   const sort = searchParams.get("sort") || "date";
   const order = searchParams.get("order") || "desc";
   results.sort((a, b) => {
@@ -67,7 +63,6 @@ export async function GET(request: NextRequest) {
     return order === "desc" ? -cmp : cmp;
   });
 
-  // Pagination
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
   const limit = Math.min(
     50,
@@ -90,4 +85,52 @@ export async function GET(request: NextRequest) {
       hasPrev: page > 1,
     },
   });
+}
+
+export async function POST(request: NextRequest) {
+  const authError = requireApiKey(request);
+  if (authError) return authError;
+
+  const body = await request.json();
+
+  const required = ["auteur", "contenu", "type", "note"];
+  for (const field of required) {
+    if (!(field in body)) {
+      return NextResponse.json(
+        { success: false, error: `Champ requis manquant : ${field}` },
+        { status: 400 }
+      );
+    }
+  }
+
+  if (typeof body.note !== "number" || body.note < 1 || body.note > 5) {
+    return NextResponse.json(
+      { success: false, error: "La note doit être un nombre entre 1 et 5" },
+      { status: 400 }
+    );
+  }
+
+  const temoignages = await getTemoignages();
+
+  const nouveau: Temoignage = {
+    id: generateId(),
+    auteur: body.auteur,
+    entreprise: body.entreprise || "",
+    poste: body.poste || "",
+    avatar: body.avatar || "",
+    note: body.note,
+    contenu: body.contenu,
+    reponse: body.reponse || null,
+    type: body.type,
+    tags: body.tags || [],
+    source: body.source || "site",
+    verifie: body.verifie ?? false,
+    date: body.date || new Date().toISOString().split("T")[0],
+    recommande: body.recommande ?? true,
+  };
+
+  temoignages.push(nouveau);
+  await saveTemoignages(temoignages);
+
+  return NextResponse.json({ success: true, data: nouveau }, { status: 201 });
 }

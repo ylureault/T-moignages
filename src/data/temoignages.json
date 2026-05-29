@@ -13,7 +13,11 @@
       "date": "2025-11-20"
     },
     "type": "diagnostic",
-    "tags": ["diagnostic", "productivité", "restructuration"],
+    "tags": [
+      "diagnostic",
+      "productivité",
+      "restructuration"
+    ],
     "source": "google",
     "verifie": true,
     "date": "2025-11-15",
@@ -29,7 +33,11 @@
     "contenu": "L'accompagnement de Yoan a été remarquable. Il a su comprendre les dynamiques internes de notre entreprise familiale et proposer des solutions pragmatiques. Nos équipes sont enfin alignées.",
     "reponse": null,
     "type": "accompagnement",
-    "tags": ["accompagnement", "alignement", "entreprise familiale"],
+    "tags": [
+      "accompagnement",
+      "alignement",
+      "entreprise familiale"
+    ],
     "source": "trustpilot",
     "verifie": true,
     "date": "2025-10-28",
@@ -49,7 +57,12 @@
       "date": "2025-10-05"
     },
     "type": "formation",
-    "tags": ["formation", "agile", "management", "sprint"],
+    "tags": [
+      "formation",
+      "agile",
+      "management",
+      "sprint"
+    ],
     "source": "google",
     "verifie": true,
     "date": "2025-09-30",
@@ -69,7 +82,12 @@
       "date": "2025-09-22"
     },
     "type": "resultats",
-    "tags": ["résultats", "turnover", "BTP", "satisfaction"],
+    "tags": [
+      "résultats",
+      "turnover",
+      "BTP",
+      "satisfaction"
+    ],
     "source": "linkedin",
     "verifie": true,
     "date": "2025-09-18",
@@ -85,7 +103,12 @@
     "contenu": "Le diagnostic a mis en lumière un problème de cadence que nous ignorions totalement. Nos équipes étaient en surchauffe permanente sans qu'on s'en rende compte. Les recommandations étaient très pertinentes.",
     "reponse": null,
     "type": "diagnostic",
-    "tags": ["diagnostic", "cadence", "surchauffe", "bien-être"],
+    "tags": [
+      "diagnostic",
+      "cadence",
+      "surchauffe",
+      "bien-être"
+    ],
     "source": "google",
     "verifie": true,
     "date": "2025-08-12",
@@ -105,7 +128,12 @@
       "date": "2025-08-05"
     },
     "type": "transformation",
-    "tags": ["transformation", "logistique", "communication", "silos"],
+    "tags": [
+      "transformation",
+      "logistique",
+      "communication",
+      "silos"
+    ],
     "source": "trustpilot",
     "verifie": true,
     "date": "2025-07-29",
@@ -121,7 +149,12 @@
     "contenu": "Le coaching individuel m'a aidé à passer de manager à vrai leader. J'ai appris à déléguer efficacement et à faire confiance à mes tech leads. Mon équipe de 45 développeurs n'a jamais été aussi autonome.",
     "reponse": null,
     "type": "formation",
-    "tags": ["coaching", "leadership", "délégation", "tech"],
+    "tags": [
+      "coaching",
+      "leadership",
+      "délégation",
+      "tech"
+    ],
     "source": "linkedin",
     "verifie": true,
     "date": "2025-07-15",
@@ -141,7 +174,12 @@
       "date": "2025-07-02"
     },
     "type": "satisfaction-client",
-    "tags": ["secteur public", "collectivité", "implication", "service"],
+    "tags": [
+      "secteur public",
+      "collectivité",
+      "implication",
+      "service"
+    ],
     "source": "google",
     "verifie": true,
     "date": "2025-06-28",
@@ -157,7 +195,12 @@
     "contenu": "Dans le secteur de la santé, le management est souvent négligé au profit du technique. Le diagnostic a montré que nos contraintes organisationnelles coûtaient 200k€/an en inefficacité. L'accompagnement a été salvateur.",
     "reponse": null,
     "type": "resultats",
-    "tags": ["santé", "contraintes", "économies", "efficacité"],
+    "tags": [
+      "santé",
+      "contraintes",
+      "économies",
+      "efficacité"
+    ],
     "source": "google",
     "verifie": true,
     "date": "2025-06-10",
@@ -177,7 +220,12 @@
       "date": "2025-05-20"
     },
     "type": "diagnostic",
-    "tags": ["diagnostic", "outil", "dirigeant", "rapport"],
+    "tags": [
+      "diagnostic",
+      "outil",
+      "dirigeant",
+      "rapport"
+    ],
     "source": "trustpilot",
     "verifie": true,
     "date": "2025-05-15",

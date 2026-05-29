@@ -3,3 +3,9 @@ node_modules/
 out/
 *.tsbuildinfo
 next-env.d.ts
+
+# Secrets - JAMAIS dans le repo
+.env
+.env.local
+.env.production
+.env.*.local
