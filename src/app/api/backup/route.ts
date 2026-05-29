@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFullBackup, restoreBackup } from "@/lib/db";
 import { requireApiKey } from "@/lib/auth";
+import { validateBackup } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -25,27 +26,19 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
 
-  if (!body.temoignages || !Array.isArray(body.temoignages)) {
+  // Validation stricte du schéma AVANT d'écraser quoi que ce soit.
+  const result = validateBackup(body);
+  if (!result.ok) {
     return NextResponse.json(
-      { success: false, error: "Format invalide : 'temoignages' (array) requis" },
+      { success: false, error: `Backup invalide : ${result.error}` },
       { status: 400 }
     );
   }
 
-  if (!body.types || !Array.isArray(body.types)) {
-    return NextResponse.json(
-      { success: false, error: "Format invalide : 'types' (array) requis" },
-      { status: 400 }
-    );
-  }
-
-  await restoreBackup({
-    temoignages: body.temoignages,
-    types: body.types,
-  });
+  await restoreBackup(result.value);
 
   return NextResponse.json({
     success: true,
-    message: `Restauration effectuée : ${body.temoignages.length} témoignages, ${body.types.length} types`,
+    message: `Restauration effectuée : ${result.value.temoignages.length} témoignages, ${result.value.types.length} types`,
   });
 }

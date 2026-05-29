@@ -5,6 +5,16 @@ interface BrevoEmail {
   replyTo?: string;
 }
 
+/** Échappe les caractères HTML pour neutraliser toute injection / XSS. */
+export function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export async function sendEmail({ to, subject, html, replyTo }: BrevoEmail): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {

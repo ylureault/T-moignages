@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTemoignages, saveTemoignages, generateId } from "@/lib/db";
 import { requireApiKey } from "@/lib/auth";
-import type { Temoignage } from "@/types";
+import { validateTemoignage } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -110,9 +110,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const temoignages = await getTemoignages();
-
-  const nouveau: Temoignage = {
+  // Validation/normalisation stricte (bornes de longueur, types, source...).
+  const candidate = {
     id: generateId(),
     auteur: body.auteur,
     entreprise: body.entreprise || "",
@@ -129,8 +128,17 @@ export async function POST(request: NextRequest) {
     recommande: body.recommande ?? true,
   };
 
-  temoignages.push(nouveau);
+  const result = validateTemoignage(candidate);
+  if (!result.ok) {
+    return NextResponse.json(
+      { success: false, error: result.error },
+      { status: 400 }
+    );
+  }
+
+  const temoignages = await getTemoignages();
+  temoignages.push(result.value);
   await saveTemoignages(temoignages);
 
-  return NextResponse.json({ success: true, data: nouveau }, { status: 201 });
+  return NextResponse.json({ success: true, data: result.value }, { status: 201 });
 }

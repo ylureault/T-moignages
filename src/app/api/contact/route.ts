@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendEmail } from "@/lib/brevo";
+import { sendEmail, escapeHtml } from "@/lib/brevo";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +17,17 @@ export async function POST(request: NextRequest) {
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(body.email)) {
+  if (!emailRegex.test(body.email) || body.email.length > 254) {
     return NextResponse.json(
       { success: false, error: "Format d'email invalide" },
+      { status: 400 }
+    );
+  }
+
+  // Bornes de longueur pour éviter les abus / payloads volumineux.
+  if (body.message.length > 5000 || body.nom.length > 200) {
+    return NextResponse.json(
+      { success: false, error: "Contenu trop long" },
       { status: 400 }
     );
   }
@@ -32,19 +40,26 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Toutes les valeurs utilisateur sont échappées avant insertion HTML.
+  const nom = escapeHtml(body.nom);
+  const email = escapeHtml(body.email);
+  const entreprise = body.entreprise ? escapeHtml(body.entreprise) : "";
+  const telephone = body.telephone ? escapeHtml(body.telephone) : "";
+  const message = escapeHtml(body.message).replace(/\n/g, "<br/>");
+
   const html = `
     <h2>Nouveau message de contact</h2>
-    <p><strong>Nom :</strong> ${body.nom}</p>
-    <p><strong>Email :</strong> ${body.email}</p>
-    ${body.entreprise ? `<p><strong>Entreprise :</strong> ${body.entreprise}</p>` : ""}
-    ${body.telephone ? `<p><strong>Téléphone :</strong> ${body.telephone}</p>` : ""}
+    <p><strong>Nom :</strong> ${nom}</p>
+    <p><strong>Email :</strong> ${email}</p>
+    ${entreprise ? `<p><strong>Entreprise :</strong> ${entreprise}</p>` : ""}
+    ${telephone ? `<p><strong>Téléphone :</strong> ${telephone}</p>` : ""}
     <hr/>
-    <p>${body.message.replace(/\n/g, "<br/>")}</p>
+    <p>${message}</p>
   `;
 
   const result = await sendEmail({
     to: destinataire,
-    subject: `[Boussole 4C] Message de ${body.nom}`,
+    subject: `[Boussole 4C] Message de ${nom}`,
     html,
     replyTo: body.email,
   });
