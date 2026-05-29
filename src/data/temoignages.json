@@ -21,7 +21,8 @@
     "source": "google",
     "verifie": true,
     "date": "2025-11-15",
-    "recommande": true
+    "recommande": true,
+    "marque": "insuffle"
   },
   {
     "id": "2",
@@ -41,7 +42,8 @@
     "source": "trustpilot",
     "verifie": true,
     "date": "2025-10-28",
-    "recommande": true
+    "recommande": true,
+    "marque": "insuffle"
   },
   {
     "id": "3",
@@ -66,7 +68,8 @@
     "source": "google",
     "verifie": true,
     "date": "2025-09-30",
-    "recommande": true
+    "recommande": true,
+    "marque": "academie"
   },
   {
     "id": "4",
@@ -91,7 +94,8 @@
     "source": "linkedin",
     "verifie": true,
     "date": "2025-09-18",
-    "recommande": true
+    "recommande": true,
+    "marque": "insuffle"
   },
   {
     "id": "5",
@@ -112,7 +116,8 @@
     "source": "google",
     "verifie": true,
     "date": "2025-08-12",
-    "recommande": true
+    "recommande": true,
+    "marque": "insuffle"
   },
   {
     "id": "6",
@@ -137,7 +142,8 @@
     "source": "trustpilot",
     "verifie": true,
     "date": "2025-07-29",
-    "recommande": true
+    "recommande": true,
+    "marque": "insuffle"
   },
   {
     "id": "7",
@@ -158,7 +164,8 @@
     "source": "linkedin",
     "verifie": true,
     "date": "2025-07-15",
-    "recommande": true
+    "recommande": true,
+    "marque": "academie"
   },
   {
     "id": "8",
@@ -183,7 +190,8 @@
     "source": "google",
     "verifie": true,
     "date": "2025-06-28",
-    "recommande": true
+    "recommande": true,
+    "marque": "insuffle"
   },
   {
     "id": "9",
@@ -204,7 +212,8 @@
     "source": "google",
     "verifie": true,
     "date": "2025-06-10",
-    "recommande": true
+    "recommande": true,
+    "marque": "insuffle"
   },
   {
     "id": "10",
@@ -229,6 +238,7 @@
     "source": "trustpilot",
     "verifie": true,
     "date": "2025-05-15",
-    "recommande": true
+    "recommande": true,
+    "marque": "insuffle"
   }
 ]

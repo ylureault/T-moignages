@@ -19,6 +19,10 @@ export interface Temoignage {
   verifie: boolean;
   date: string;
   recommande: boolean;
+  /** Image de fond optionnelle du hero (URL d'upload), affichée en alpha. */
+  heroImage?: string;
+  /** Marque associée : "insuffle" (conseil) ou "academie" (formations). */
+  marque: "insuffle" | "academie";
 }
 
 export interface TypeTemoignage {

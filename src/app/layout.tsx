@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "API Témoignages | Insuffle - Boussole 4C",
+  title: "Témoignages | Insuffle",
   description:
-    "API de gestion des témoignages clients pour la plateforme Boussole 4C par Insuffle",
+    "Ce que nos clients disent d'Insuffle — faisons bouger votre organisation.",
 };
 
 export default function RootLayout({
@@ -14,7 +14,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
-      <body className="bg-slate-950 text-white antialiased">{children}</body>
+      <body className="bg-paper text-ink antialiased">{children}</body>
     </html>
   );
 }

@@ -1,6 +1,7 @@
 import type { Temoignage, TypeTemoignage } from "@/types";
 
 const VALID_SOURCES = ["google", "trustpilot", "linkedin", "site", "autre"];
+const VALID_MARQUES = ["insuffle", "academie"];
 
 type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -33,6 +34,9 @@ export function validateTemoignage(raw: unknown): Result<Temoignage> {
   if (o.source !== undefined && (!isString(o.source) || !VALID_SOURCES.includes(o.source))) {
     return { ok: false, error: `source invalide (${VALID_SOURCES.join(", ")})` };
   }
+  if (o.marque !== undefined && (!isString(o.marque) || !VALID_MARQUES.includes(o.marque))) {
+    return { ok: false, error: `marque invalide (${VALID_MARQUES.join(", ")})` };
+  }
   if (o.tags !== undefined && (!Array.isArray(o.tags) || !o.tags.every(isString))) {
     return { ok: false, error: "tags invalides (tableau de chaînes)" };
   }
@@ -52,9 +56,15 @@ export function validateTemoignage(raw: unknown): Result<Temoignage> {
     type: o.type,
     tags: Array.isArray(o.tags) ? (o.tags as string[]) : [],
     source: (isString(o.source) ? o.source : "site") as Temoignage["source"],
+    marque: (isString(o.marque) && VALID_MARQUES.includes(o.marque)
+      ? o.marque
+      : "insuffle") as Temoignage["marque"],
     verifie: typeof o.verifie === "boolean" ? o.verifie : false,
     date: isString(o.date) ? o.date : new Date().toISOString().split("T")[0],
     recommande: typeof o.recommande === "boolean" ? o.recommande : true,
+    ...(isString(o.heroImage) && o.heroImage.length <= 512
+      ? { heroImage: o.heroImage }
+      : {}),
   };
   return { ok: true, value };
 }

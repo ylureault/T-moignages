@@ -20,6 +20,11 @@ export async function GET(request: NextRequest) {
     results = results.filter((t) => t.source === source);
   }
 
+  const marque = searchParams.get("marque");
+  if (marque) {
+    results = results.filter((t) => t.marque === marque);
+  }
+
   const noteMin = searchParams.get("note_min");
   if (noteMin) {
     const min = parseInt(noteMin, 10);
@@ -123,9 +128,11 @@ export async function POST(request: NextRequest) {
     type: body.type,
     tags: body.tags || [],
     source: body.source || "site",
+    marque: body.marque || "insuffle",
     verifie: body.verifie ?? false,
     date: body.date || new Date().toISOString().split("T")[0],
     recommande: body.recommande ?? true,
+    ...(body.heroImage ? { heroImage: body.heroImage } : {}),
   };
 
   const result = validateTemoignage(candidate);
