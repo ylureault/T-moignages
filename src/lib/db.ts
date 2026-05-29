@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { randomBytes } from "crypto";
 import type { Temoignage, TypeTemoignage, Invitation, Evenement } from "@/types";
+import { backupNow, readLatestLocalSnapshot, readRemoteBackup, type FullBackup } from "./persist";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const TEMOIGNAGES_FILE = path.join(DATA_DIR, "temoignages.json");
@@ -189,9 +190,52 @@ const DEFAULT_TYPES: TypeTemoignage[] = [
 
 let initialized = false;
 
+async function fileMissing(p: string): Promise<boolean> {
+  try {
+    await fs.access(p);
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Restauration automatique AVANT tout seed : si des fichiers de données sont
+ * absents (ex. premier démarrage après un redéploiement sur FS éphémère), on
+ * récupère le dernier snapshot local, sinon le backup Git distant. On n'écrit
+ * que les fichiers manquants — jamais d'écrasement de données existantes.
+ */
+async function maybeRestore(): Promise<void> {
+  const targets: [string, keyof FullBackup][] = [
+    [TEMOIGNAGES_FILE, "temoignages"],
+    [TYPES_FILE, "types"],
+    [EVENEMENTS_FILE, "evenements"],
+    [INVITATIONS_FILE, "invitations"],
+  ];
+
+  const missing = await Promise.all(targets.map(([f]) => fileMissing(f)));
+  if (!missing.some(Boolean)) return; // Rien à restaurer.
+
+  let snapshot: FullBackup | null = await readLatestLocalSnapshot();
+  if (!snapshot) snapshot = await readRemoteBackup();
+  if (!snapshot) return; // Aucune sauvegarde disponible : on laissera le seed agir.
+
+  for (let i = 0; i < targets.length; i++) {
+    if (!missing[i]) continue; // Ne jamais écraser un fichier existant.
+    const [file, key] = targets[i];
+    const arr = Array.isArray(snapshot[key]) ? snapshot[key] : null;
+    if (arr) {
+      await fs.writeFile(file, JSON.stringify(arr, null, 2), "utf-8");
+    }
+  }
+}
+
 async function ensureDataDir(): Promise<void> {
   if (initialized) return;
   await fs.mkdir(DATA_DIR, { recursive: true });
+
+  // Restauration auto avant seed (snapshot local puis Git distant).
+  await maybeRestore();
 
   try {
     await fs.access(TEMOIGNAGES_FILE);
@@ -254,12 +298,26 @@ async function writeJSON<T>(filePath: string, data: T): Promise<void> {
   }
 }
 
+/**
+ * Déclenche une sauvegarde automatique (snapshot local + Git distant si activé)
+ * après chaque écriture. Best-effort : n'échoue jamais la requête appelante.
+ */
+async function afterWrite(): Promise<void> {
+  try {
+    const backup = await getFullBackup();
+    await backupNow(backup);
+  } catch {
+    /* ne jamais propager une erreur de backup */
+  }
+}
+
 export async function getTemoignages(): Promise<Temoignage[]> {
   return readJSON<Temoignage[]>(TEMOIGNAGES_FILE);
 }
 
 export async function saveTemoignages(data: Temoignage[]): Promise<void> {
   await withLock(TEMOIGNAGES_FILE, () => writeJSON(TEMOIGNAGES_FILE, data));
+  await afterWrite();
 }
 
 export async function getTypes(): Promise<TypeTemoignage[]> {
@@ -268,6 +326,7 @@ export async function getTypes(): Promise<TypeTemoignage[]> {
 
 export async function saveTypes(data: TypeTemoignage[]): Promise<void> {
   await withLock(TYPES_FILE, () => writeJSON(TYPES_FILE, data));
+  await afterWrite();
 }
 
 export async function getInvitations(): Promise<Invitation[]> {
@@ -276,6 +335,7 @@ export async function getInvitations(): Promise<Invitation[]> {
 
 export async function saveInvitations(data: Invitation[]): Promise<void> {
   await withLock(INVITATIONS_FILE, () => writeJSON(INVITATIONS_FILE, data));
+  await afterWrite();
 }
 
 export async function getEvenements(): Promise<Evenement[]> {
@@ -284,6 +344,7 @@ export async function getEvenements(): Promise<Evenement[]> {
 
 export async function saveEvenements(data: Evenement[]): Promise<void> {
   await withLock(EVENEMENTS_FILE, () => writeJSON(EVENEMENTS_FILE, data));
+  await afterWrite();
 }
 
 export async function getFullBackup(): Promise<{
