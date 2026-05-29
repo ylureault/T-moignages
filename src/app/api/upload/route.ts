@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 import { randomBytes } from "crypto";
-import { requireApiKey } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +37,7 @@ const MAGIC_BYTES: Record<string, (b: Buffer) => boolean> = {
 const MAX_SIZE = 5 * 1024 * 1024; // 5 Mo
 
 export async function POST(request: NextRequest) {
-  const authError = requireApiKey(request);
+  const authError = requireAuth(request);
   if (authError) return authError;
 
   let formData: FormData;
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const authError = requireApiKey(request);
+  const authError = requireAuth(request);
   if (authError) return authError;
 
   const url = request.nextUrl.searchParams.get("url");

@@ -15,13 +15,12 @@ const NOTE_STYLES: { value: NoteStyle; label: string }[] = [
 ];
 const CHAMP_TYPES: ChampPersonnalise["type"][] = ["text", "textarea", "note", "select", "checkbox"];
 
-// ─── API helper ───────────────────────────────────────────────
-function apiFetch(path: string, apiKey: string, opts: RequestInit = {}) {
+function apiFetch(path: string, opts: RequestInit = {}) {
   return fetch(path, {
     ...opts,
+    credentials: "include",
     headers: {
       ...(opts.headers || {}),
-      "x-api-key": apiKey,
       ...(!opts.body || opts.body instanceof FormData
         ? {}
         : { "Content-Type": "application/json" }),
@@ -65,29 +64,18 @@ const ICONS = {
   eyeOff: "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M3 3l18 18",
 };
 
-// ─── Main Admin Page ──────────────────────────────────────────
 export default function AdminPage() {
-  const [apiKey, setApiKey] = useState("");
+  const [password, setPassword] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem("admin_api_key");
-    if (stored) {
-      apiFetch("/api/backup", stored).then((r) => {
-        if (r.ok) {
-          setApiKey(stored);
-          setAuthenticated(true);
-        } else {
-          sessionStorage.removeItem("admin_api_key");
-        }
-        setChecking(false);
-      }).catch(() => setChecking(false));
-    } else {
-      setChecking(false);
-    }
+    fetch("/api/auth", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => { if (d.authenticated) setAuthenticated(true); setChecking(false); })
+      .catch(() => setChecking(false));
   }, []);
 
   async function handleLogin(e: React.FormEvent) {
@@ -95,18 +83,28 @@ export default function AdminPage() {
     setAuthLoading(true);
     setAuthError("");
     try {
-      const res = await apiFetch("/api/backup", apiKey);
-      if (res.ok) {
-        sessionStorage.setItem("admin_api_key", apiKey);
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
         setAuthenticated(true);
+        setPassword("");
       } else {
-        const data = await res.json();
-        setAuthError(data.error || "Clé invalide");
+        setAuthError(data.error || "Mot de passe incorrect");
       }
     } catch {
       setAuthError("Erreur de connexion");
     }
     setAuthLoading(false);
+  }
+
+  async function handleLogout() {
+    await fetch("/api/auth", { method: "DELETE", credentials: "include" });
+    setAuthenticated(false);
   }
 
   if (checking) {
@@ -119,21 +117,21 @@ export default function AdminPage() {
 
   if (!authenticated) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-6">
-        <form onSubmit={handleLogin} className="w-full max-w-md rounded-2xl border border-slate-700/50 bg-slate-800/50 p-8 backdrop-blur-sm">
+      <div className="flex min-h-screen items-center justify-center px-4 sm:px-6">
+        <form onSubmit={handleLogin} className="w-full max-w-md rounded-2xl border border-slate-700/50 bg-slate-800/50 p-6 backdrop-blur-sm sm:p-8">
           <div className="mb-6 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-teal-600">
               <Icon d={ICONS.key} className="w-5 h-5 text-white" />
             </div>
             <h1 className="text-xl font-bold">Administration</h1>
           </div>
-          <label className="mb-2 block text-sm font-medium text-slate-300">Clé API</label>
+          <label className="mb-2 block text-sm font-medium text-slate-300">Mot de passe</label>
           <input
             type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             className="mb-4 w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-3 text-white outline-none transition-all placeholder:text-slate-500 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-            placeholder="Votre clé API secrète"
+            placeholder="Votre mot de passe"
             autoFocus
           />
           {authError && (
@@ -141,7 +139,7 @@ export default function AdminPage() {
           )}
           <button
             type="submit"
-            disabled={authLoading || !apiKey}
+            disabled={authLoading || !password}
             className="w-full rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-6 py-3 font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {authLoading ? "Vérification…" : "Connexion"}
@@ -151,11 +149,11 @@ export default function AdminPage() {
     );
   }
 
-  return <AdminShell apiKey={apiKey} onLogout={() => { sessionStorage.removeItem("admin_api_key"); setAuthenticated(false); setApiKey(""); }} />;
+  return <AdminShell onLogout={handleLogout} />;
 }
 
 // ─── Admin Shell (post-auth) ──────────────────────────────────
-function AdminShell({ apiKey, onLogout }: { apiKey: string; onLogout: () => void }) {
+function AdminShell({ onLogout }: { onLogout: () => void }) {
   const [view, setView] = useState<View>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -263,19 +261,19 @@ function AdminShell({ apiKey, onLogout }: { apiKey: string; onLogout: () => void
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto px-4 pb-6 pt-16 md:p-8 md:pt-8">
-        {view === "dashboard" && <DashboardView apiKey={apiKey} onNav={setView} />}
-        {view === "temoignages" && <TemoignagesView apiKey={apiKey} />}
-        {view === "types" && <TypesView apiKey={apiKey} />}
-        {view === "evenements" && <EvenementsView apiKey={apiKey} />}
-        {view === "invitations" && <InvitationsView apiKey={apiKey} />}
-        {view === "backup" && <BackupView apiKey={apiKey} />}
+        {view === "dashboard" && <DashboardView onNav={setView} />}
+        {view === "temoignages" && <TemoignagesView />}
+        {view === "types" && <TypesView />}
+        {view === "evenements" && <EvenementsView />}
+        {view === "invitations" && <InvitationsView />}
+        {view === "backup" && <BackupView />}
       </main>
     </div>
   );
 }
 
 // ─── Dashboard ────────────────────────────────────────────────
-function DashboardView({ apiKey, onNav }: { apiKey: string; onNav: (v: View) => void }) {
+function DashboardView({ onNav }: { onNav: (v: View) => void }) {
   const [temoignages, setTemoignages] = useState<Temoignage[]>([]);
   const [evenements, setEvenements] = useState<Evenement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -283,13 +281,13 @@ function DashboardView({ apiKey, onNav }: { apiKey: string; onNav: (v: View) => 
   useEffect(() => {
     Promise.all([
       fetch("/api/temoignages?limit=50").then((r) => r.json()),
-      apiFetch("/api/evenements", apiKey).then((r) => r.json()),
+      apiFetch("/api/evenements").then((r) => r.json()),
     ]).then(([td, ev]) => {
       setTemoignages(td.data || []);
       setEvenements(ev.data || []);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [apiKey]);
+  }, []);
 
   if (loading) return <Loader />;
 
@@ -385,7 +383,7 @@ function DashboardView({ apiKey, onNav }: { apiKey: string; onNav: (v: View) => 
 }
 
 // ─── Témoignages CRUD ─────────────────────────────────────────
-function TemoignagesView({ apiKey }: { apiKey: string }) {
+function TemoignagesView() {
   const [temoignages, setTemoignages] = useState<Temoignage[]>([]);
   const [types, setTypes] = useState<TypeTemoignage[]>([]);
   const [evenements, setEvenements] = useState<Evenement[]>([]);
@@ -403,14 +401,14 @@ function TemoignagesView({ apiKey }: { apiKey: string }) {
     Promise.all([
       fetch("/api/temoignages?limit=50").then((r) => r.json()),
       fetch("/api/types").then((r) => r.json()),
-      apiFetch("/api/evenements", apiKey).then((r) => r.json()),
+      apiFetch("/api/evenements").then((r) => r.json()),
     ]).then(([td, tp, ev]) => {
       setTemoignages(td.data || []);
       setTypes(tp.data || []);
       setEvenements(ev.data || []);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [apiKey]);
+  }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -424,7 +422,7 @@ function TemoignagesView({ apiKey }: { apiKey: string }) {
   });
 
   async function handleDelete(id: string) {
-    const res = await apiFetch(`/api/temoignages/${id}`, apiKey, { method: "DELETE" });
+    const res = await apiFetch(`/api/temoignages/${id}`, { method: "DELETE" });
     if (res.ok) {
       setTemoignages((prev) => prev.filter((t) => t.id !== id));
       setDeleteId(null);
@@ -432,7 +430,7 @@ function TemoignagesView({ apiKey }: { apiKey: string }) {
   }
 
   async function togglePublie(t: Temoignage) {
-    const res = await apiFetch(`/api/temoignages/${t.id}`, apiKey, {
+    const res = await apiFetch(`/api/temoignages/${t.id}`, {
       method: "PUT",
       body: JSON.stringify({ publie: t.publie === false }),
     });
@@ -446,7 +444,7 @@ function TemoignagesView({ apiKey }: { apiKey: string }) {
       const isEdit = !!editing;
       const url = isEdit ? `/api/temoignages/${editing!.id}` : "/api/temoignages";
       const method = isEdit ? "PUT" : "POST";
-      const res = await apiFetch(url, apiKey, { method, body: JSON.stringify(data) });
+      const res = await apiFetch(url, { method, body: JSON.stringify(data) });
       const result = await res.json();
       if (!res.ok) {
         setError(result.error || "Erreur");
@@ -472,7 +470,6 @@ function TemoignagesView({ apiKey }: { apiKey: string }) {
         evenements={evenements}
         saving={saving}
         error={error}
-        apiKey={apiKey}
         onSave={handleSave}
         onCancel={() => { setEditing(null); setCreating(false); setError(""); }}
       />
@@ -624,7 +621,6 @@ function TemoignageForm({
   evenements,
   saving,
   error,
-  apiKey,
   onSave,
   onCancel,
 }: {
@@ -633,7 +629,6 @@ function TemoignageForm({
   evenements: Evenement[];
   saving: boolean;
   error: string;
-  apiKey: string;
   onSave: (data: Record<string, unknown>) => void;
   onCancel: () => void;
 }) {
@@ -705,7 +700,7 @@ function TemoignageForm({
     fd.append("file", file);
     fd.append("folder", field === "avatar" ? "avatars" : "heroes");
     try {
-      const res = await apiFetch("/api/upload", apiKey, { method: "POST", body: fd });
+      const res = await apiFetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json();
       if (res.ok && data.data?.url) {
         setForm((f) => ({ ...f, [field]: data.data.url }));
@@ -901,7 +896,7 @@ function TemoignageForm({
 }
 
 // ─── Types CRUD ───────────────────────────────────────────────
-function TypesView({ apiKey }: { apiKey: string }) {
+function TypesView() {
   const [types, setTypes] = useState<TypeTemoignage[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<TypeTemoignage | null>(null);
@@ -928,7 +923,7 @@ function TypesView({ apiKey }: { apiKey: string }) {
   useEffect(() => { loadTypes(); }, [loadTypes]);
 
   async function handleDelete(id: string) {
-    const res = await apiFetch(`/api/types/${id}`, apiKey, { method: "DELETE" });
+    const res = await apiFetch(`/api/types/${id}`, { method: "DELETE" });
     if (res.ok) {
       setTypes((prev) => prev.filter((t) => t.id !== id));
       setDeleteId(null);
@@ -938,7 +933,7 @@ function TypesView({ apiKey }: { apiKey: string }) {
   if (loading) return <Loader />;
 
   if (creating || editing) {
-    return <TypeForm initial={editing} apiKey={apiKey} onDone={() => { setEditing(null); setCreating(false); loadTypes(); }} onCancel={() => { setEditing(null); setCreating(false); }} />;
+    return <TypeForm initial={editing} onDone={() => { setEditing(null); setCreating(false); loadTypes(); }} onCancel={() => { setEditing(null); setCreating(false); }} />;
   }
 
   return (
@@ -1015,7 +1010,7 @@ function TypesView({ apiKey }: { apiKey: string }) {
 }
 
 // ─── Type Form ────────────────────────────────────────────────
-function TypeForm({ initial, apiKey, onDone, onCancel }: { initial: TypeTemoignage | null; apiKey: string; onDone: () => void; onCancel: () => void }) {
+function TypeForm({ initial, onDone, onCancel }: { initial: TypeTemoignage | null; onDone: () => void; onCancel: () => void }) {
   const [form, setForm] = useState({
     id: initial?.id || "",
     label: initial?.label || "",
@@ -1070,7 +1065,7 @@ function TypeForm({ initial, apiKey, onDone, onCancel }: { initial: TypeTemoigna
     const method = isEdit ? "PUT" : "POST";
     const payload = { ...form, champs };
     try {
-      const res = await apiFetch(url, apiKey, { method, body: JSON.stringify(payload) });
+      const res = await apiFetch(url, { method, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Erreur");
@@ -1322,7 +1317,7 @@ function TypeForm({ initial, apiKey, onDone, onCancel }: { initial: TypeTemoigna
 }
 
 // ─── Événements CRUD ──────────────────────────────────────────
-function EvenementsView({ apiKey }: { apiKey: string }) {
+function EvenementsView() {
   const [evenements, setEvenements] = useState<Evenement[]>([]);
   const [types, setTypes] = useState<TypeTemoignage[]>([]);
   const [temoignages, setTemoignages] = useState<Temoignage[]>([]);
@@ -1335,7 +1330,7 @@ function EvenementsView({ apiKey }: { apiKey: string }) {
   const loadData = useCallback(() => {
     setLoading(true);
     Promise.all([
-      apiFetch("/api/evenements", apiKey).then((r) => r.json()),
+      apiFetch("/api/evenements").then((r) => r.json()),
       fetch("/api/types").then((r) => r.json()),
       fetch("/api/temoignages?limit=200").then((r) => r.json()),
     ]).then(([ev, tp, tm]) => {
@@ -1344,7 +1339,7 @@ function EvenementsView({ apiKey }: { apiKey: string }) {
       setTemoignages(tm.data || []);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [apiKey]);
+  }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -1366,7 +1361,7 @@ function EvenementsView({ apiKey }: { apiKey: string }) {
   }
 
   async function handleDelete(id: string) {
-    const res = await apiFetch(`/api/evenements/${id}`, apiKey, { method: "DELETE" });
+    const res = await apiFetch(`/api/evenements/${id}`, { method: "DELETE" });
     if (res.ok) {
       setEvenements((prev) => prev.filter((e) => e.id !== id));
       setDeleteId(null);
@@ -1374,7 +1369,7 @@ function EvenementsView({ apiKey }: { apiKey: string }) {
   }
 
   async function toggleActive(evt: Evenement) {
-    const res = await apiFetch(`/api/evenements/${evt.id}`, apiKey, {
+    const res = await apiFetch(`/api/evenements/${evt.id}`, {
       method: "PUT",
       body: JSON.stringify({ ...evt, actif: !evt.actif }),
     });
@@ -1387,7 +1382,7 @@ function EvenementsView({ apiKey }: { apiKey: string }) {
     const isEdit = !!editing;
     const url = isEdit ? `/api/evenements/${editing!.id}` : "/api/evenements";
     const method = isEdit ? "PUT" : "POST";
-    const res = await apiFetch(url, apiKey, { method, body: JSON.stringify(data) });
+    const res = await apiFetch(url, { method, body: JSON.stringify(data) });
     if (res.ok) {
       loadData();
       setEditing(null);
@@ -1635,7 +1630,7 @@ function EvenementForm({
 }
 
 // ─── Invitations ──────────────────────────────────────────────
-function InvitationsView({ apiKey }: { apiKey: string }) {
+function InvitationsView() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [types, setTypes] = useState<TypeTemoignage[]>([]);
   const [evenements, setEvenements] = useState<Evenement[]>([]);
@@ -1647,16 +1642,16 @@ function InvitationsView({ apiKey }: { apiKey: string }) {
   const loadData = useCallback(() => {
     setLoading(true);
     Promise.all([
-      apiFetch("/api/invitations", apiKey).then((r) => r.json()),
+      apiFetch("/api/invitations").then((r) => r.json()),
       fetch("/api/types").then((r) => r.json()),
-      apiFetch("/api/evenements", apiKey).then((r) => r.json()),
+      apiFetch("/api/evenements").then((r) => r.json()),
     ]).then(([inv, tp, ev]) => {
       setInvitations(inv.data || []);
       setTypes(tp.data || []);
       setEvenements(ev.data || []);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [apiKey]);
+  }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -1681,7 +1676,7 @@ function InvitationsView({ apiKey }: { apiKey: string }) {
   }
 
   async function handleDelete(id: string) {
-    const res = await apiFetch(`/api/invitations/${id}`, apiKey, { method: "DELETE" });
+    const res = await apiFetch(`/api/invitations/${id}`, { method: "DELETE" });
     if (res.ok) {
       setInvitations((prev) => prev.filter((i) => i.id !== id));
       setDeleteId(null);
@@ -1689,7 +1684,7 @@ function InvitationsView({ apiKey }: { apiKey: string }) {
   }
 
   async function handleCreate(data: Record<string, string>) {
-    const res = await apiFetch("/api/invitations", apiKey, { method: "POST", body: JSON.stringify(data) });
+    const res = await apiFetch("/api/invitations", { method: "POST", body: JSON.stringify(data) });
     if (res.ok) {
       loadData();
       setCreating(false);
@@ -1933,7 +1928,7 @@ function InvitationForm({ types, evenements, onSave, onCancel }: { types: TypeTe
 }
 
 // ─── Backup/Restore ───────────────────────────────────────────
-function BackupView({ apiKey }: { apiKey: string }) {
+function BackupView() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -1942,7 +1937,7 @@ function BackupView({ apiKey }: { apiKey: string }) {
     setStatus("loading");
     setMessage("");
     try {
-      const res = await apiFetch("/api/backup", apiKey);
+      const res = await apiFetch("/api/backup");
       if (!res.ok) { setStatus("error"); setMessage("Erreur lors de l'export"); return; }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -1967,7 +1962,7 @@ function BackupView({ apiKey }: { apiKey: string }) {
     try {
       const text = await file.text();
       const json = JSON.parse(text);
-      const res = await apiFetch("/api/backup", apiKey, { method: "POST", body: JSON.stringify(json) });
+      const res = await apiFetch("/api/backup", { method: "POST", body: JSON.stringify(json) });
       const data = await res.json();
       if (!res.ok) {
         setStatus("error");

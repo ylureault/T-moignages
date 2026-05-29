@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTypes, saveTypes } from "@/lib/db";
-import { requireApiKey } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +8,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const authError = requireApiKey(request);
+  const authError = requireAuth(request);
   if (authError) return authError;
 
   const { id } = await params;
@@ -33,7 +33,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const authError = requireApiKey(request);
+  const authError = requireAuth(request);
   if (authError) return authError;
 
   const { id } = await params;

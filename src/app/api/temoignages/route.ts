@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTemoignages, saveTemoignages, generateId } from "@/lib/db";
-import { requireApiKey } from "@/lib/auth";
+import { requireAuth, isAdmin } from "@/lib/auth";
 import { validateTemoignage } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
@@ -10,8 +10,8 @@ export async function GET(request: NextRequest) {
 
   let results = await getTemoignages();
 
-  const isAdmin = !!request.headers.get("x-api-key");
-  if (!isAdmin) {
+  const admin = isAdmin(request);
+  if (!admin) {
     results = results.filter((t) => t.publie !== false);
   }
 
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authError = requireApiKey(request);
+  const authError = requireAuth(request);
   if (authError) return authError;
 
   const body = await request.json();

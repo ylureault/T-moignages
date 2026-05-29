@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFullBackup, restoreBackup } from "@/lib/db";
-import { requireApiKey } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 import { validateBackup } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const authError = requireApiKey(request);
+  const authError = requireAuth(request);
   if (authError) return authError;
 
   const backup = await getFullBackup();
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authError = requireApiKey(request);
+  const authError = requireAuth(request);
   if (authError) return authError;
 
   const body = await request.json();

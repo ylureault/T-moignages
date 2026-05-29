@@ -1,26 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEvenements, saveEvenements, generateId } from "@/lib/db";
-import { requireApiKey } from "@/lib/auth";
+import { requireAuth, isAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const isPublic = !request.headers.get("x-api-key");
+  const admin = isAdmin(request);
   const evenements = await getEvenements();
 
-  if (isPublic) {
+  if (!admin) {
     const actifs = evenements.filter((e) => e.actif);
     return NextResponse.json({ success: true, count: actifs.length, data: actifs });
   }
-
-  const authError = requireApiKey(request);
-  if (authError) return authError;
 
   return NextResponse.json({ success: true, count: evenements.length, data: evenements });
 }
 
 export async function POST(request: NextRequest) {
-  const authError = requireApiKey(request);
+  const authError = requireAuth(request);
   if (authError) return authError;
 
   const body = await request.json();

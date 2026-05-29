@@ -1,48 +1,77 @@
 import { NextRequest, NextResponse } from "next/server";
-import { timingSafeEqual } from "crypto";
+import { timingSafeEqual, randomBytes, createHash } from "crypto";
 
-const MIN_KEY_LENGTH = 32;
+const SESSION_COOKIE = "admin_session";
+const SESSION_MAX_AGE = 60 * 60 * 24; // 24h
 
-/**
- * Comparaison à temps constant pour éviter les timing attacks.
- * Renvoie false si les longueurs diffèrent (sans court-circuit révélateur).
- */
 function safeCompare(a: string, b: string): boolean {
   const bufA = Buffer.from(a, "utf-8");
   const bufB = Buffer.from(b, "utf-8");
   if (bufA.length !== bufB.length) {
-    // On compare quand même contre soi-même pour garder un temps constant.
     timingSafeEqual(bufA, bufA);
     return false;
   }
   return timingSafeEqual(bufA, bufB);
 }
 
-export function requireApiKey(request: NextRequest): NextResponse | null {
-  const apiKey = process.env.API_SECRET_KEY;
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
 
-  // Refus de démarrer une route protégée si la clé serveur est absente ou faible.
-  if (!apiKey || apiKey.length < MIN_KEY_LENGTH) {
+const sessions = new Map<string, number>();
+
+export function createSession(): { token: string; cookie: string } {
+  const token = randomBytes(32).toString("hex");
+  const hashed = hashToken(token);
+  sessions.set(hashed, Date.now() + SESSION_MAX_AGE * 1000);
+
+  for (const [k, exp] of sessions) {
+    if (exp < Date.now()) sessions.delete(k);
+  }
+
+  const cookie = `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_MAX_AGE}`;
+  return { token, cookie };
+}
+
+export function clearSession(): string {
+  return `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
+}
+
+function isValidSession(request: NextRequest): boolean {
+  const cookieVal = request.cookies.get(SESSION_COOKIE)?.value;
+  if (!cookieVal) return false;
+  const hashed = hashToken(cookieVal);
+  const exp = sessions.get(hashed);
+  if (!exp || exp < Date.now()) {
+    sessions.delete(hashed);
+    return false;
+  }
+  return true;
+}
+
+export function verifyPassword(password: string): boolean {
+  const stored = process.env.ADMIN_PASSWORD;
+  if (!stored || stored.length < 4) return false;
+  return safeCompare(password, stored);
+}
+
+export function requireAuth(request: NextRequest): NextResponse | null {
+  const password = process.env.ADMIN_PASSWORD;
+  if (!password || password.length < 4) {
     return NextResponse.json(
-      {
-        success: false,
-        error:
-          "Clé API serveur non configurée ou trop faible (min 32 caractères)",
-      },
-      { status: 500 }
+      { success: false, error: "Mot de passe admin non configuré (ADMIN_PASSWORD dans .env)" },
+      { status: 500 },
     );
   }
 
-  const header = request.headers.get("x-api-key");
-  if (!header || !safeCompare(header, apiKey)) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Clé API invalide ou manquante (header x-api-key)",
-      },
-      { status: 401 }
-    );
-  }
+  if (isValidSession(request)) return null;
 
-  return null;
+  return NextResponse.json(
+    { success: false, error: "Non authentifié" },
+    { status: 401 },
+  );
+}
+
+export function isAdmin(request: NextRequest): boolean {
+  return isValidSession(request);
 }
