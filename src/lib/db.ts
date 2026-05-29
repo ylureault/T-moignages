@@ -187,42 +187,6 @@ const DEFAULT_TYPES: TypeTemoignage[] = [
   },
 ];
 
-const DEFAULT_EVENEMENTS: Evenement[] = [
-  {
-    id: "seminaire-codir-demo",
-    nom: "Séminaire CODIR — Alignement stratégique",
-    description: "Séminaire d'une journée pour aligner le comité de direction sur les priorités à 90 jours",
-    typeId: "seminaire-codir",
-    date: "2026-06-15",
-    lieu: "Paris",
-    marque: "insuffle",
-    actif: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "formation-facilitation-juin-2026",
-    nom: "Formation Facilitation & Intelligence Collective — Juin 2026",
-    description: "Session de 3 jours pour acquérir les fondamentaux de la facilitation",
-    typeId: "formation-facilitation",
-    date: "2026-06-23",
-    lieu: "Rouen",
-    marque: "academie",
-    actif: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "atelier-ic-demo",
-    nom: "Atelier Intelligence Collective — Résolution de défi",
-    description: "Atelier d'une demi-journée pour résoudre un défi complexe en intelligence collective",
-    typeId: "atelier-intelligence-collective",
-    date: "2026-07-03",
-    lieu: "En entreprise",
-    marque: "insuffle",
-    actif: true,
-    createdAt: new Date().toISOString(),
-  },
-];
-
 let initialized = false;
 
 async function ensureDataDir(): Promise<void> {
@@ -247,10 +211,13 @@ async function ensureDataDir(): Promise<void> {
     await fs.writeFile(INVITATIONS_FILE, "[]", "utf-8");
   }
 
+  // Les événements sont des données utilisateur : jamais de seed automatique.
+  // On crée seulement un fichier vide s'il est absent, pour ne JAMAIS recréer
+  // de démos qui écraseraient/masqueraient les événements créés par l'admin.
   try {
     await fs.access(EVENEMENTS_FILE);
   } catch {
-    await fs.writeFile(EVENEMENTS_FILE, JSON.stringify(DEFAULT_EVENEMENTS, null, 2), "utf-8");
+    await fs.writeFile(EVENEMENTS_FILE, "[]", "utf-8");
   }
 
   initialized = true;
