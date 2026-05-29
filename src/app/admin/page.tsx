@@ -62,6 +62,7 @@ const ICONS = {
   calendar: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
   eye: "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z",
   eyeOff: "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M3 3l18 18",
+  userAnon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
 };
 
 export default function AdminPage() {
@@ -395,6 +396,16 @@ function TemoignagesView() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  function copyCitation(id: string, anon: boolean) {
+    const url = `${window.location.origin}/temoignages/${id}?mode=quote${anon ? "&anon=1" : ""}`;
+    const key = id + (anon ? "-a" : "");
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(key);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  }
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -570,6 +581,12 @@ function TemoignagesView() {
                 <td className="px-2 py-3 sm:px-4 sm:py-4 text-sm text-slate-400">{t.date}</td>
                 <td className="px-2 py-3 sm:px-4 sm:py-4">
                   <div className="flex items-center gap-1">
+                    <button onClick={() => copyCitation(t.id, false)} className={`rounded-lg p-2 transition-colors ${copied === t.id ? "text-teal-400" : "text-slate-400 hover:bg-slate-700/50 hover:text-teal-400"}`} title="Copier le lien citation (page unique)">
+                      <Icon d={copied === t.id ? ICONS.check : ICONS.link} className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => copyCitation(t.id, true)} className={`rounded-lg p-2 transition-colors ${copied === t.id + "-a" ? "text-teal-400" : "text-slate-400 hover:bg-slate-700/50 hover:text-teal-400"}`} title="Copier le lien citation ANONYME (initiales)">
+                      <Icon d={copied === t.id + "-a" ? ICONS.check : ICONS.userAnon} className="w-4 h-4" />
+                    </button>
                     <button onClick={() => togglePublie(t)} className={`rounded-lg p-2 transition-colors ${t.publie === false ? "text-slate-500 hover:bg-emerald-500/10 hover:text-emerald-400" : "text-emerald-400 hover:bg-slate-700/50 hover:text-slate-400"}`} title={t.publie === false ? "Publier" : "Masquer"}>
                       <Icon d={t.publie === false ? ICONS.eyeOff : ICONS.eye} className="w-4 h-4" />
                     </button>
