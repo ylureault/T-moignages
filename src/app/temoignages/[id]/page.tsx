@@ -97,20 +97,29 @@ export default async function TemoignagePage({
     <div className={`${themeClass} flex min-h-screen flex-col`}>
       <SiteHeader />
 
-      {/* Hero banner avec image de fond en alpha */}
+      {/* Hero banner : photo en fond qui se fond en dégradé vers le bas */}
       <section className="relative overflow-hidden bg-navy">
-        {t.heroImage && (
-          <div
-            className="absolute inset-0 bg-cover bg-center opacity-25"
-            style={{ backgroundImage: `url('${t.heroImage}')` }}
-            aria-hidden
-          />
+        {t.heroImage ? (
+          <div className="absolute inset-0" aria-hidden>
+            {/* La photo, nette et plein cadre */}
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url('${t.heroImage}')` }}
+            />
+            {/* Léger assombrissement global pour la lisibilité (neutre, toutes marques) */}
+            <div className="absolute inset-0 bg-black/20" />
+            {/* Fondu : la fin (bas) de l'image se fond dans le fond de page (couleur de la marque) */}
+            <div className="absolute inset-x-0 bottom-0 h-4/5 bg-gradient-to-t from-navy to-transparent" />
+            {/* Voile latéral subtil pour le contraste du texte */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent" />
+            {/* Touche de couleur accent en haut */}
+            <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
+          </div>
+        ) : (
+          <div className="absolute -right-24 top-0 h-80 w-80 rounded-full bg-accent/20 blur-3xl" aria-hidden />
         )}
-        {/* Voile dégradé pour garder la lisibilité par-dessus l'image */}
-        <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/85 to-navy/55" />
-        <div className="absolute -right-24 top-0 h-80 w-80 rounded-full bg-accent/20 blur-3xl" />
 
-        <div className="relative mx-auto max-w-3xl px-4 pb-12 pt-12 sm:px-6 sm:pb-16 sm:pt-16 md:pt-20">
+        <div className={`relative mx-auto max-w-3xl px-4 sm:px-6 ${t.heroImage ? "pt-28 pb-12 sm:pt-44 sm:pb-16 md:pt-52" : "pt-12 pb-12 sm:pt-16 sm:pb-16 md:pt-20"}`}>
           <a
             href="/temoignages"
             className="animate-fade-up inline-flex items-center gap-2 text-sm font-medium text-white/70 transition-colors hover:text-white"
