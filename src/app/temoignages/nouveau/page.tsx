@@ -26,6 +26,7 @@ function NouveauTemoignageContent() {
   const searchParams = useSearchParams();
   const typeParam = searchParams.get("type");
   const marqueParam = searchParams.get("marque");
+  const tokenParam = searchParams.get("token");
 
   const [note, setNote] = useState(0);
   const [hover, setHover] = useState(0);
@@ -44,24 +45,43 @@ function NouveauTemoignageContent() {
   const [allTypes, setAllTypes] = useState<TypeInfo[]>([]);
   const [selectedType, setSelectedType] = useState<string>(typeParam || "");
   const [typesLoaded, setTypesLoaded] = useState(false);
+  const [invitationMessage, setInvitationMessage] = useState("");
+  const [invitationUsed, setInvitationUsed] = useState(false);
 
   useEffect(() => {
-    fetch("/api/types")
-      .then((r) => r.json())
-      .then((d) => {
-        const types: TypeInfo[] = d.data || [];
-        setAllTypes(types);
-        if (typeParam) {
-          const found = types.find((t) => t.id === typeParam);
-          if (found) {
-            setTypeInfo(found);
-            setSelectedType(found.id);
+    const init = async () => {
+      const typesRes = await fetch("/api/types").then((r) => r.json()).catch(() => ({ data: [] }));
+      const types: TypeInfo[] = typesRes.data || [];
+      setAllTypes(types);
+
+      if (tokenParam) {
+        const invRes = await fetch(`/api/invitations/${tokenParam}`).then((r) => r.json()).catch(() => null);
+        if (invRes?.success && invRes.data) {
+          const inv = invRes.data;
+          if (inv.used) { setInvitationUsed(true); setTypesLoaded(true); return; }
+          setForm((f) => ({
+            ...f,
+            auteur: inv.nom || f.auteur,
+            email: inv.email || f.email,
+            entreprise: inv.entreprise || f.entreprise,
+            marque: inv.marque || f.marque,
+          }));
+          if (inv.message) setInvitationMessage(inv.message);
+          if (inv.type) {
+            setSelectedType(inv.type);
+            const found = types.find((t) => t.id === inv.type);
+            if (found) setTypeInfo(found);
           }
         }
-        setTypesLoaded(true);
-      })
-      .catch(() => setTypesLoaded(true));
-  }, [typeParam]);
+      } else if (typeParam) {
+        const found = types.find((t) => t.id === typeParam);
+        if (found) { setTypeInfo(found); setSelectedType(found.id); }
+      }
+
+      setTypesLoaded(true);
+    };
+    init();
+  }, [typeParam, tokenParam]);
 
   const update = (k: keyof typeof form) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -90,6 +110,13 @@ function NouveauTemoignageContent() {
         setMessage(data.error || "Une erreur est survenue.");
         return;
       }
+      if (tokenParam) {
+        fetch(`/api/invitations/${tokenParam}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ used: true }),
+        }).catch(() => {});
+      }
       setStatus("success");
       setMessage(data.message);
     } catch {
@@ -99,6 +126,25 @@ function NouveauTemoignageContent() {
   }
 
   const labels = ["", "Décevant", "Moyen", "Correct", "Très bien", "Excellent"];
+
+  if (invitationUsed) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-sand px-6">
+        <div className="animate-fade-up w-full max-w-md rounded-3xl border border-line bg-paper p-10 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/10">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="text-accent">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <h1 className="mt-6 font-display text-2xl font-bold text-ink">Déjà complété</h1>
+          <p className="mt-3 leading-relaxed text-muted">Ce lien a déjà été utilisé pour soumettre un témoignage. Merci !</p>
+          <a href="/temoignages" className="mt-8 inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3 font-semibold text-white transition-all hover:bg-accent">
+            Voir les témoignages
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   if (status === "success") {
     return (
@@ -205,6 +251,11 @@ function NouveauTemoignageContent() {
                 langue de bois.
               </p>
             </>
+          )}
+          {invitationMessage && (
+            <div className="mx-auto mt-6 max-w-md rounded-2xl border border-accent/15 bg-accent/5 px-5 py-4 text-sm leading-relaxed text-ink/80">
+              {invitationMessage}
+            </div>
           )}
         </div>
 

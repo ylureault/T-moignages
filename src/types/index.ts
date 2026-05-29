@@ -32,3 +32,16 @@ export interface TypeTemoignage {
   icon: string;
   color: string;
 }
+
+export interface Invitation {
+  id: string;
+  nom: string;
+  email: string;
+  entreprise: string;
+  type: string;
+  marque: "insuffle" | "academie";
+  message: string;
+  createdAt: string;
+  used: boolean;
+  usedAt?: string;
+}

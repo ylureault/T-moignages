@@ -1,11 +1,12 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { randomBytes } from "crypto";
-import type { Temoignage, TypeTemoignage } from "@/types";
+import type { Temoignage, TypeTemoignage, Invitation } from "@/types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const TEMOIGNAGES_FILE = path.join(DATA_DIR, "temoignages.json");
 const TYPES_FILE = path.join(DATA_DIR, "types.json");
+const INVITATIONS_FILE = path.join(DATA_DIR, "invitations.json");
 
 const DEFAULT_TYPES: TypeTemoignage[] = [
   { id: "satisfaction-client", label: "Satisfaction client", description: "Avis liés à la qualité du service et la satisfaction globale", icon: "star", color: "#14b8a6" },
@@ -32,6 +33,12 @@ async function ensureDataDir(): Promise<void> {
     await fs.access(TYPES_FILE);
   } catch {
     await fs.writeFile(TYPES_FILE, JSON.stringify(DEFAULT_TYPES, null, 2), "utf-8");
+  }
+
+  try {
+    await fs.access(INVITATIONS_FILE);
+  } catch {
+    await fs.writeFile(INVITATIONS_FILE, "[]", "utf-8");
   }
 
   initialized = true;
@@ -82,6 +89,14 @@ export async function getTypes(): Promise<TypeTemoignage[]> {
 
 export async function saveTypes(data: TypeTemoignage[]): Promise<void> {
   await withLock(TYPES_FILE, () => writeJSON(TYPES_FILE, data));
+}
+
+export async function getInvitations(): Promise<Invitation[]> {
+  return readJSON<Invitation[]>(INVITATIONS_FILE);
+}
+
+export async function saveInvitations(data: Invitation[]): Promise<void> {
+  await withLock(INVITATIONS_FILE, () => writeJSON(INVITATIONS_FILE, data));
 }
 
 export async function getFullBackup(): Promise<{

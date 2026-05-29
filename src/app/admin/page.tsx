@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { Temoignage, TypeTemoignage } from "@/types";
+import type { Temoignage, TypeTemoignage, Invitation } from "@/types";
 
-type View = "dashboard" | "temoignages" | "types" | "backup";
+type View = "dashboard" | "temoignages" | "types" | "invitations" | "backup";
 
 const SOURCES = ["google", "trustpilot", "linkedin", "site", "autre"] as const;
 const MARQUES = ["insuffle", "academie"] as const;
@@ -50,6 +50,9 @@ const ICONS = {
   chevronLeft: "M15 19l-7-7 7-7",
   chevronRight: "M9 5l7 7-7 7",
   menu: "M4 6h16M4 12h16M4 18h16",
+  link: "M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1",
+  mail: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+  copy: "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z",
 };
 
 // ─── Main Admin Page ──────────────────────────────────────────
@@ -150,6 +153,7 @@ function AdminShell({ apiKey, onLogout }: { apiKey: string; onLogout: () => void
     { id: "dashboard", label: "Tableau de bord", icon: ICONS.dashboard },
     { id: "temoignages", label: "Témoignages", icon: ICONS.document },
     { id: "types", label: "Types", icon: ICONS.inbox },
+    { id: "invitations", label: "Invitations", icon: ICONS.link },
     { id: "backup", label: "Sauvegarde", icon: ICONS.server },
   ];
 
@@ -204,6 +208,7 @@ function AdminShell({ apiKey, onLogout }: { apiKey: string; onLogout: () => void
         {view === "dashboard" && <DashboardView apiKey={apiKey} onNav={setView} />}
         {view === "temoignages" && <TemoignagesView apiKey={apiKey} />}
         {view === "types" && <TypesView apiKey={apiKey} />}
+        {view === "invitations" && <InvitationsView apiKey={apiKey} />}
         {view === "backup" && <BackupView apiKey={apiKey} />}
       </main>
     </div>
@@ -947,6 +952,286 @@ function TypeForm({ initial, apiKey, onDone, onCancel }: { initial: TypeTemoigna
         <div className="flex items-center gap-3 pt-2">
           <button type="submit" disabled={saving} className="rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-6 py-3 font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50">
             {saving ? "Enregistrement…" : initial ? "Mettre à jour" : "Créer"}
+          </button>
+          <button type="button" onClick={onCancel} className="rounded-xl bg-slate-800/50 px-5 py-3 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
+            Annuler
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ─── Invitations ──────────────────────────────────────────────
+function InvitationsView({ apiKey }: { apiKey: string }) {
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [types, setTypes] = useState<TypeTemoignage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const loadData = useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      apiFetch("/api/invitations", apiKey).then((r) => r.json()),
+      fetch("/api/types").then((r) => r.json()),
+    ]).then(([inv, tp]) => {
+      setInvitations(inv.data || []);
+      setTypes(tp.data || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [apiKey]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  function copyLink(id: string) {
+    const url = `${window.location.origin}/temoignages/nouveau?token=${id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(id);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  }
+
+  function shareLink(inv: Invitation) {
+    const url = `${window.location.origin}/temoignages/nouveau?token=${inv.id}`;
+    const subject = encodeURIComponent("Votre avis compte — partagez votre expérience");
+    const body = encodeURIComponent(
+      `Bonjour${inv.nom ? " " + inv.nom : ""},\n\n${inv.message || "Nous aimerions recueillir votre témoignage sur votre expérience avec Insuffle."}\n\nCliquez ici pour partager votre avis :\n${url}\n\nMerci !\nL'équipe Insuffle`
+    );
+    const mailto = inv.email
+      ? `mailto:${inv.email}?subject=${subject}&body=${body}`
+      : `mailto:?subject=${subject}&body=${body}`;
+    window.open(mailto);
+  }
+
+  async function handleDelete(id: string) {
+    const res = await apiFetch(`/api/invitations/${id}`, apiKey, { method: "DELETE" });
+    if (res.ok) {
+      setInvitations((prev) => prev.filter((i) => i.id !== id));
+      setDeleteId(null);
+    }
+  }
+
+  async function handleCreate(data: Record<string, string>) {
+    const res = await apiFetch("/api/invitations", apiKey, { method: "POST", body: JSON.stringify(data) });
+    if (res.ok) {
+      loadData();
+      setCreating(false);
+    }
+  }
+
+  if (loading) return <Loader />;
+
+  if (creating) {
+    return <InvitationForm types={types} onSave={handleCreate} onCancel={() => setCreating(false)} />;
+  }
+
+  const typeMap = Object.fromEntries(types.map((t) => [t.id, t]));
+  const pending = invitations.filter((i) => !i.used);
+  const used = invitations.filter((i) => i.used);
+
+  return (
+    <div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Invitations</h1>
+          <p className="mt-1 text-sm text-slate-400">{pending.length} en attente · {used.length} complétée{used.length > 1 ? "s" : ""}</p>
+        </div>
+        <button
+          onClick={() => setCreating(true)}
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-5 py-2.5 font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400"
+        >
+          <Icon d={ICONS.plus} className="w-4 h-4" />
+          Nouveau lien
+        </button>
+      </div>
+
+      {pending.length > 0 && (
+        <div className="mb-8">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-500">En attente</h2>
+          <div className="space-y-3">
+            {pending.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((inv) => {
+              const t = typeMap[inv.type];
+              return (
+                <div key={inv.id} className="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-5 backdrop-blur-sm">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold">{inv.nom || "Client anonyme"}</span>
+                        {inv.email && <span className="text-sm text-slate-400">{inv.email}</span>}
+                        {inv.entreprise && <span className="text-xs text-slate-500">· {inv.entreprise}</span>}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        {t && (
+                          <span className="rounded-lg px-2.5 py-1 text-xs font-medium" style={{ backgroundColor: t.color + "33", color: t.color }}>
+                            {t.label}
+                          </span>
+                        )}
+                        <span className={`rounded-lg px-2.5 py-1 text-xs font-medium ${inv.marque === "academie" ? "bg-purple-500/20 text-purple-400" : "bg-teal-500/20 text-teal-400"}`}>
+                          {inv.marque}
+                        </span>
+                        <span className="text-xs text-slate-500">{new Date(inv.createdAt).toLocaleDateString("fr-FR")}</span>
+                      </div>
+                      {inv.message && <p className="mt-2 text-sm text-slate-400 line-clamp-2">{inv.message}</p>}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        onClick={() => copyLink(inv.id)}
+                        className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white"
+                      >
+                        <Icon d={ICONS.copy} className="w-3.5 h-3.5" />
+                        {copied === inv.id ? "Copié !" : "Copier le lien"}
+                      </button>
+                      <button
+                        onClick={() => shareLink(inv)}
+                        className="flex items-center gap-1.5 rounded-lg bg-teal-500/20 px-3 py-2 text-xs font-medium text-teal-400 transition-colors hover:bg-teal-500/30"
+                      >
+                        <Icon d={ICONS.mail} className="w-3.5 h-3.5" />
+                        Envoyer
+                      </button>
+                      <button
+                        onClick={() => setDeleteId(inv.id)}
+                        className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-500/10 hover:text-red-400"
+                      >
+                        <Icon d={ICONS.trash} className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {used.length > 0 && (
+        <div>
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-500">Complétées</h2>
+          <div className="space-y-3">
+            {used.sort((a, b) => new Date(b.usedAt || b.createdAt).getTime() - new Date(a.usedAt || a.createdAt).getTime()).map((inv) => {
+              const t = typeMap[inv.type];
+              return (
+                <div key={inv.id} className="rounded-2xl border border-slate-700/50 bg-slate-800/30 p-5 opacity-70">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20">
+                        <Icon d={ICONS.check} className="w-4 h-4 text-emerald-400" />
+                      </div>
+                      <div>
+                        <span className="font-medium">{inv.nom || "Client anonyme"}</span>
+                        {t && <span className="ml-2 text-xs text-slate-500">{t.label}</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-slate-500">{inv.usedAt ? new Date(inv.usedAt).toLocaleDateString("fr-FR") : ""}</span>
+                      <button onClick={() => setDeleteId(inv.id)} className="rounded-lg p-2 text-slate-500 transition-all hover:bg-red-500/10 hover:text-red-400">
+                        <Icon d={ICONS.trash} className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {invitations.length === 0 && (
+        <div className="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-12 text-center backdrop-blur-sm">
+          <Icon d={ICONS.link} className="mx-auto mb-4 w-12 h-12 text-slate-600" />
+          <p className="text-slate-400">Aucune invitation. Créez un lien unique à envoyer à vos clients.</p>
+        </div>
+      )}
+
+      {deleteId && (
+        <Modal onClose={() => setDeleteId(null)}>
+          <div className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/20">
+              <Icon d={ICONS.trash} className="w-6 h-6 text-red-400" />
+            </div>
+            <h3 className="mb-2 text-lg font-semibold">Supprimer cette invitation ?</h3>
+            <p className="mb-6 text-sm text-slate-400">Le lien ne fonctionnera plus.</p>
+            <div className="flex justify-center gap-3">
+              <button onClick={() => setDeleteId(null)} className="rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700">Annuler</button>
+              <button onClick={() => handleDelete(deleteId)} className="rounded-xl bg-red-500/20 px-5 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/30">Supprimer</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ─── Invitation Form ──────────────────────────────────────────
+function InvitationForm({ types, onSave, onCancel }: { types: TypeTemoignage[]; onSave: (data: Record<string, string>) => void; onCancel: () => void }) {
+  const [form, setForm] = useState({
+    nom: "",
+    email: "",
+    entreprise: "",
+    type: types[0]?.id || "",
+    marque: "insuffle",
+    message: "",
+  });
+
+  const update = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const inputClass = "w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-3 text-white outline-none transition-all placeholder:text-slate-500 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20";
+
+  return (
+    <div>
+      <div className="mb-6 flex items-center gap-4">
+        <button onClick={onCancel} className="rounded-xl bg-slate-800/50 p-2.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white">
+          <Icon d={ICONS.chevronLeft} className="w-5 h-5" />
+        </button>
+        <div>
+          <h1 className="text-3xl font-bold">Nouvelle invitation</h1>
+          <p className="mt-1 text-sm text-slate-400">Créez un lien unique pour votre client</p>
+        </div>
+      </div>
+
+      <form
+        onSubmit={(e) => { e.preventDefault(); onSave(form); }}
+        className="max-w-xl space-y-4 rounded-2xl border border-slate-700/50 bg-slate-800/50 p-6 backdrop-blur-sm md:p-8"
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-300">Nom du client</label>
+            <input value={form.nom} onChange={update("nom")} className={inputClass} placeholder="Marie Dupont" />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-300">Email</label>
+            <input type="email" value={form.email} onChange={update("email")} className={inputClass} placeholder="marie@entreprise.com" />
+          </div>
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-300">Entreprise</label>
+          <input value={form.entreprise} onChange={update("entreprise")} className={inputClass} placeholder="Acme Inc." />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-300">Type de témoignage</label>
+            <select value={form.type} onChange={update("type")} className={inputClass}>
+              <option value="">— Général —</option>
+              {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-300">Marque</label>
+            <select value={form.marque} onChange={update("marque")} className={inputClass}>
+              <option value="insuffle">Insuffle (Conseil)</option>
+              <option value="academie">Académie (Formations)</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-300">Message personnel (visible sur le formulaire)</label>
+          <textarea value={form.message} onChange={update("message")} rows={3} className={`${inputClass} resize-none`} placeholder="Bonjour Marie, merci pour cette belle collaboration…" />
+        </div>
+        <div className="flex items-center gap-3 pt-2">
+          <button type="submit" className="rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-6 py-3 font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400">
+            Créer le lien
           </button>
           <button type="button" onClick={onCancel} className="rounded-xl bg-slate-800/50 px-5 py-3 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
             Annuler
