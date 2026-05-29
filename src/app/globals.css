@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
 
 /* ───────────────────────────────────────────────
    Système de design Insuffle — v2 Radical
@@ -85,11 +85,18 @@ body {
   border-radius: 0.75rem;
   border: 1.5px solid rgba(255,255,255,0.1);
   background: rgba(12,22,41,0.8);
-  padding: 0.7rem 0.9rem;
-  font-size: 0.95rem;
+  padding: 0.75rem 0.875rem;
+  font-size: 1rem;
   color: #F8FAFC;
   transition: border-color 0.2s, box-shadow 0.2s;
   outline: none;
+  min-height: 2.75rem;
+}
+@media (min-width: 640px) {
+  .input {
+    font-size: 0.95rem;
+    padding: 0.7rem 0.9rem;
+  }
 }
 .input::placeholder {
   color: var(--color-muted-soft);

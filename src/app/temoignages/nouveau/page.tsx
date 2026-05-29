@@ -255,11 +255,11 @@ function NouveauTemoignageContent() {
             <div className="mt-8 rounded-2xl border border-line bg-dark/50 p-5">
               <p className="mb-3 text-sm font-semibold text-ink">Partagez avec vos collègues</p>
               <p className="mb-4 text-xs text-muted">Invitez-les à partager aussi leur expérience</p>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <ShareCopyButton url={currentShareUrl} />
                 <a
                   href={`mailto:?subject=${encodeURIComponent("Partagez votre expérience")}&body=${encodeURIComponent(`Bonjour,\n\nJe viens de partager mon témoignage et je vous invite à faire de même :\n${currentShareUrl}\n\nMerci !`)}`}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink transition-all hover:bg-white/5"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-line px-4 py-3 text-sm font-medium text-ink transition-all hover:bg-white/5"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -290,17 +290,17 @@ function NouveauTemoignageContent() {
           </div>
         </div>
 
-        <div className="mx-auto max-w-3xl px-6 py-12 md:py-16">
+        <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12 md:py-16">
           <div className="animate-fade-up text-center">
-            <h1 className="font-display text-3xl font-bold leading-tight text-ink md:text-4xl">
+            <h1 className="font-display text-2xl font-bold leading-tight text-ink sm:text-3xl md:text-4xl">
               Partagez votre <span className="accent-underline text-accent">expérience</span>
             </h1>
-            <p className="mx-auto mt-3 max-w-md text-muted">
+            <p className="mx-auto mt-3 max-w-md text-sm text-muted sm:text-base">
               Choisissez le type de témoignage qui correspond le mieux.
             </p>
           </div>
 
-          <div className="animate-fade-up delay-1 mt-10 grid gap-4 sm:grid-cols-2">
+          <div className="animate-fade-up delay-1 mt-8 grid gap-3 sm:mt-10 sm:gap-4 sm:grid-cols-2">
             {allTypes.map((t) => (
               <button
                 key={t.id}
@@ -332,7 +332,7 @@ function NouveauTemoignageContent() {
   return (
     <div className="min-h-screen bg-dark">
       <div className="border-b border-line bg-dark/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
           <Logo />
           <a href="/temoignages" className="text-sm font-medium text-muted transition-colors hover:text-ink">
             Retour
@@ -340,7 +340,7 @@ function NouveauTemoignageContent() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-2xl px-6 py-12 md:py-16">
+      <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-12 md:py-16">
         <div className="animate-fade-up text-center">
           {eventInfo ? (
             <>
@@ -349,10 +349,10 @@ function NouveauTemoignageContent() {
                   <TypeIcon icon={typeInfo.icon} />
                 </div>
               )}
-              <h1 className="font-display text-3xl font-bold leading-tight text-ink md:text-4xl">
+              <h1 className="font-display text-2xl font-bold leading-tight text-ink sm:text-3xl md:text-4xl">
                 {eventInfo.nom}
               </h1>
-              <p className="mx-auto mt-3 max-w-md text-muted">{eventInfo.description || typeInfo?.description}</p>
+              <p className="mx-auto mt-3 max-w-md text-sm text-muted sm:text-base">{eventInfo.description || typeInfo?.description}</p>
               {eventInfo.lieu && (
                 <p className="mt-2 text-sm text-muted-soft">{eventInfo.lieu} · {eventInfo.date}</p>
               )}
@@ -362,17 +362,17 @@ function NouveauTemoignageContent() {
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl text-xl" style={{ backgroundColor: typeInfo.color + "1a", color: typeInfo.color }}>
                 <TypeIcon icon={typeInfo.icon} />
               </div>
-              <h1 className="font-display text-3xl font-bold leading-tight text-ink md:text-4xl">
+              <h1 className="font-display text-2xl font-bold leading-tight text-ink sm:text-3xl md:text-4xl">
                 {typeInfo.label}
               </h1>
-              <p className="mx-auto mt-3 max-w-md text-muted">{typeInfo.description}</p>
+              <p className="mx-auto mt-3 max-w-md text-sm text-muted sm:text-base">{typeInfo.description}</p>
             </>
           ) : (
             <>
-              <h1 className="font-display text-3xl font-bold leading-tight text-ink md:text-4xl">
+              <h1 className="font-display text-2xl font-bold leading-tight text-ink sm:text-3xl md:text-4xl">
                 Partagez votre <span className="accent-underline text-accent">expérience</span>
               </h1>
-              <p className="mx-auto mt-3 max-w-md text-muted">
+              <p className="mx-auto mt-3 max-w-md text-sm text-muted sm:text-base">
                 Votre retour aide d&apos;autres dirigeants à franchir le pas. Sans
                 langue de bois.
               </p>
@@ -387,7 +387,7 @@ function NouveauTemoignageContent() {
 
         <form
           onSubmit={handleSubmit}
-          className="animate-fade-up delay-1 mt-10 rounded-3xl border border-line bg-card p-6 md:p-8"
+          className="animate-fade-up delay-1 mt-8 rounded-2xl border border-line bg-card p-4 sm:mt-10 sm:rounded-3xl sm:p-6 md:p-8"
         >
           {/* Note principale */}
           <div className="mb-8 text-center">
@@ -612,7 +612,7 @@ function SmileyInput({ value, onChange }: { value: number; onChange: (n: number)
   ];
   return (
     <div>
-      <div className="flex items-center justify-center gap-3">
+      <div className="flex items-center justify-center gap-2 sm:gap-3">
         {smileys.map((s, i) => {
           const n = i + 1;
           const active = value === n;
@@ -621,7 +621,7 @@ function SmileyInput({ value, onChange }: { value: number; onChange: (n: number)
               key={n}
               type="button"
               onClick={() => onChange(n)}
-              className={`flex h-14 w-14 items-center justify-center rounded-2xl text-2xl transition-all ${
+              className={`flex h-12 w-12 items-center justify-center rounded-xl text-xl transition-all sm:h-14 sm:w-14 sm:rounded-2xl sm:text-2xl ${
                 active
                   ? "scale-110"
                   : "opacity-50 hover:opacity-80 hover:scale-105"
@@ -647,13 +647,13 @@ function ScaleInput({ value, onChange }: { value: number; onChange: (n: number) 
 
   return (
     <div>
-      <div className="flex items-center justify-center gap-1">
+      <div className="grid grid-cols-5 gap-1.5 sm:flex sm:items-center sm:justify-center sm:gap-1">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
           <button
             key={n}
             type="button"
             onClick={() => setFromScale(n)}
-            className={`flex h-10 w-10 items-center justify-center rounded-lg text-sm font-bold transition-all ${
+            className={`flex h-10 w-full items-center justify-center rounded-lg text-sm font-bold transition-all sm:h-10 sm:w-10 ${
               n <= mapped
                 ? "bg-accent text-dark"
                 : "bg-white/5 text-muted hover:bg-white/10"
@@ -674,11 +674,11 @@ function ScaleInput({ value, onChange }: { value: number; onChange: (n: number) 
 function ThumbsInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   return (
     <div>
-      <div className="flex items-center justify-center gap-6">
+      <div className="flex items-center justify-center gap-4 sm:gap-6">
         <button
           type="button"
           onClick={() => onChange(2)}
-          className={`flex h-16 w-16 items-center justify-center rounded-2xl text-3xl transition-all ${
+          className={`flex h-14 w-14 items-center justify-center rounded-2xl text-2xl transition-all sm:h-16 sm:w-16 sm:text-3xl ${
             value === 2
               ? "scale-110 bg-red-500/20 ring-2 ring-red-500 ring-offset-2 ring-offset-dark"
               : "bg-white/5 opacity-50 hover:opacity-80 hover:scale-105"
@@ -690,7 +690,7 @@ function ThumbsInput({ value, onChange }: { value: number; onChange: (n: number)
         <button
           type="button"
           onClick={() => onChange(5)}
-          className={`flex h-16 w-16 items-center justify-center rounded-2xl text-3xl transition-all ${
+          className={`flex h-14 w-14 items-center justify-center rounded-2xl text-2xl transition-all sm:h-16 sm:w-16 sm:text-3xl ${
             value === 5
               ? "scale-110 bg-emerald-500/20 ring-2 ring-emerald-500 ring-offset-2 ring-offset-dark"
               : "bg-white/5 opacity-50 hover:opacity-80 hover:scale-105"

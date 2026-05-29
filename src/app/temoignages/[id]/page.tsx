@@ -54,7 +54,7 @@ export default async function TemoignagePage({
         <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/85 to-navy/55" />
         <div className="absolute -right-24 top-0 h-80 w-80 rounded-full bg-accent/20 blur-3xl" />
 
-        <div className="relative mx-auto max-w-3xl px-6 pb-16 pt-16 md:pt-20">
+        <div className="relative mx-auto max-w-3xl px-4 pb-12 pt-12 sm:px-6 sm:pb-16 sm:pt-16 md:pt-20">
           <a
             href="/temoignages"
             className="animate-fade-up inline-flex items-center gap-2 text-sm font-medium text-white/70 transition-colors hover:text-white"
@@ -65,40 +65,40 @@ export default async function TemoignagePage({
             Tous les témoignages
           </a>
 
-          <div className="animate-fade-up delay-1 mt-8 flex items-center gap-3">
+          <div className="animate-fade-up delay-1 mt-6 flex items-center gap-3 sm:mt-8">
             <Stars note={t.note} size={22} />
             <span className="text-sm font-medium text-white/60">
               {t.note.toFixed(1)} / 5
             </span>
           </div>
 
-          <blockquote className="animate-fade-up delay-2 mt-6 font-display text-2xl font-medium leading-snug text-white md:text-4xl md:leading-[1.2]">
-            <span className="text-accent">“</span>
+          <blockquote className="animate-fade-up delay-2 mt-5 font-display text-lg font-medium leading-snug text-white sm:mt-6 sm:text-2xl md:text-4xl md:leading-[1.2]">
+            <span className="text-accent">&ldquo;</span>
             {t.contenu}
-            <span className="text-accent">”</span>
+            <span className="text-accent">&rdquo;</span>
           </blockquote>
         </div>
       </section>
 
       {/* Auteur + détails */}
       <main className="flex-1 bg-sand">
-        <div className="mx-auto max-w-3xl px-6 py-12">
-          <div className="-mt-20 rounded-2xl border border-line bg-card p-6 shadow-[0_20px_50px_-30px_rgba(21,23,28,0.4)] md:p-8">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-navy font-display text-lg font-semibold text-white">
+        <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
+          <div className="-mt-16 rounded-2xl border border-line bg-card p-5 shadow-[0_20px_50px_-30px_rgba(21,23,28,0.4)] sm:-mt-20 sm:p-6 md:p-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-navy font-display text-base font-semibold text-white sm:h-14 sm:w-14 sm:text-lg">
                   {initials(t.auteur)}
                 </span>
-                <div>
-                  <p className="font-display text-lg font-bold text-ink">{t.auteur}</p>
-                  <p className="text-sm text-muted">
+                <div className="min-w-0">
+                  <p className="truncate font-display text-base font-bold text-ink sm:text-lg">{t.auteur}</p>
+                  <p className="truncate text-sm text-muted">
                     {t.poste}
                     {t.poste && t.entreprise ? " · " : ""}
                     {t.entreprise}
                   </p>
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-3 sm:flex-col sm:items-end sm:gap-1">
                 <SourceBadge source={t.source} verifie={t.verifie} />
                 <span className="text-xs text-muted-soft">{formatDate(t.date)}</span>
               </div>
@@ -136,7 +136,7 @@ export default async function TemoignagePage({
 
           {/* Réponses personnalisées */}
           {t.champsPersonnalises && typeInfo?.champs && typeInfo.champs.length > 0 && (
-            <div className="mt-6 space-y-4 rounded-2xl border border-line bg-dark/50 p-6">
+            <div className="mt-6 space-y-4 rounded-2xl border border-line bg-dark/50 p-4 sm:p-6">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-soft">Détail du retour</h3>
               {typeInfo.champs.map((champ) => {
                 const val = t.champsPersonnalises?.[champ.id];
@@ -157,7 +157,7 @@ export default async function TemoignagePage({
 
           {/* Réponse Insuffle */}
           {t.reponse && (
-            <div className="animate-fade-up mt-6 rounded-2xl border-l-4 border-accent bg-card p-6 md:p-8">
+            <div className="animate-fade-up mt-6 rounded-2xl border-l-4 border-accent bg-card p-4 sm:p-6 md:p-8">
               <div className="mb-3 flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-md bg-accent font-display text-xs font-bold text-white">
                   I
@@ -174,16 +174,16 @@ export default async function TemoignagePage({
           )}
 
           {/* CTA */}
-          <div className="mt-10 rounded-2xl bg-card p-8 text-center md:p-10">
-            <h2 className="font-display text-2xl font-bold text-white md:text-3xl">
+          <div className="mt-8 rounded-2xl bg-card p-6 text-center sm:mt-10 sm:p-8 md:p-10">
+            <h2 className="font-display text-xl font-bold text-white sm:text-2xl md:text-3xl">
               Et si c&apos;était votre tour&nbsp;?
             </h2>
-            <p className="mx-auto mt-3 max-w-md text-white/70">
+            <p className="mx-auto mt-3 max-w-md text-sm text-white/70 sm:text-base">
               On ne vend pas du temps, on vend du déblocage.
             </p>
             <a
               href="https://insuffle.com"
-              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-primary-light"
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-primary-light sm:mt-6 sm:w-auto"
             >
               Je passe à l&apos;action
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">

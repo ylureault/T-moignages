@@ -26,26 +26,26 @@ export default async function Home() {
 
       {/* Hero */}
       <section className="relative overflow-hidden bg-navy">
-        <div className="absolute -right-40 -top-40 h-[28rem] w-[28rem] rounded-full bg-accent/20 blur-3xl animate-float-slow" />
-        <div className="absolute -bottom-48 -left-32 h-[28rem] w-[28rem] rounded-full bg-accent/10 blur-3xl" />
-        <div className="relative mx-auto max-w-5xl px-6 py-24 text-center md:py-32">
-          <span className="animate-fade-up inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-sm font-medium text-white/80">
+        <div className="absolute -right-40 -top-40 hidden h-[28rem] w-[28rem] rounded-full bg-accent/20 blur-3xl animate-float-slow sm:block" />
+        <div className="absolute -bottom-48 -left-32 hidden h-[28rem] w-[28rem] rounded-full bg-accent/10 blur-3xl sm:block" />
+        <div className="relative mx-auto max-w-5xl px-4 py-16 text-center sm:px-6 md:py-28 lg:py-32">
+          <span className="animate-fade-up inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/80 sm:px-4 sm:text-sm">
             <Stars note={Math.round(moyenne)} size={14} />
             {moyenne.toFixed(1)}/5 · {temoignages.length} avis
           </span>
-          <h1 className="animate-fade-up delay-1 mx-auto mt-6 max-w-4xl font-display text-4xl font-bold leading-[1.05] text-white md:text-6xl lg:text-7xl">
+          <h1 className="animate-fade-up delay-1 mx-auto mt-5 max-w-4xl font-display text-2xl font-bold leading-[1.1] text-white sm:mt-6 sm:text-4xl md:text-5xl lg:text-7xl">
             Assez de langue de bois.
             <br />
             <span className="accent-underline text-accent">Place aux résultats.</span>
           </h1>
-          <p className="animate-fade-up delay-2 mx-auto mt-7 max-w-xl text-lg leading-relaxed text-white/70">
+          <p className="animate-fade-up delay-2 mx-auto mt-5 max-w-xl text-base leading-relaxed text-white/70 sm:mt-7 sm:text-lg">
             Découvrez ce que vivent les dirigeants qui ont choisi de transformer
             la complexité en Clarté Vivante avec Insuffle.
           </p>
-          <div className="animate-fade-up delay-3 mt-10 flex flex-wrap items-center justify-center gap-3">
+          <div className="animate-fade-up delay-3 mt-8 flex flex-col items-center gap-3 sm:mt-10 sm:flex-row sm:justify-center">
             <a
               href="/temoignages"
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3.5 font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-primary-light"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3.5 font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-primary-light sm:w-auto"
             >
               Lire les témoignages
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -54,7 +54,7 @@ export default async function Home() {
             </a>
             <a
               href="/temoignages/nouveau"
-              className="inline-flex items-center gap-2 rounded-lg border border-white/20 px-6 py-3.5 font-semibold text-white transition-all hover:bg-white/10"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/20 px-6 py-3.5 font-semibold text-white transition-all hover:bg-white/10 sm:w-auto"
             >
               Laisser un avis
             </a>
@@ -64,13 +64,13 @@ export default async function Home() {
 
       {/* Témoignages vedettes */}
       <main className="flex-1 bg-sand">
-        <div className="mx-auto max-w-6xl px-6 py-20">
-          <div className="mb-12 flex items-end justify-between">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-20">
+          <div className="mb-8 flex items-end justify-between sm:mb-12">
             <div>
-              <span className="text-sm font-semibold uppercase tracking-wider text-accent">
+              <span className="text-xs font-semibold uppercase tracking-wider text-accent sm:text-sm">
                 Ils témoignent
               </span>
-              <h2 className="mt-2 font-display text-3xl font-bold text-ink md:text-4xl">
+              <h2 className="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl md:text-4xl">
                 Des mots qui pèsent
               </h2>
             </div>
@@ -85,7 +85,7 @@ export default async function Home() {
             </a>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {vedettes.map((t, i) => (
               <div
                 key={t.id}
