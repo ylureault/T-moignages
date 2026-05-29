@@ -10,70 +10,216 @@ const INVITATIONS_FILE = path.join(DATA_DIR, "invitations.json");
 const EVENEMENTS_FILE = path.join(DATA_DIR, "evenements.json");
 
 const DEFAULT_TYPES: TypeTemoignage[] = [
+  // ── Séminaires ──────────────────────────────────────────────
   {
-    id: "satisfaction-client", label: "Satisfaction client",
-    description: "Avis liés à la qualité du service et la satisfaction globale",
-    icon: "star", color: "#14b8a6", noteStyle: "stars",
+    id: "seminaire-codir", label: "Séminaire CODIR",
+    description: "Séminaire d'alignement pour comités de direction — clarifier les priorités, décider ensemble",
+    icon: "compass", color: "#1f3a8b", noteStyle: "stars",
     champs: [
-      { id: "point-fort", label: "Quel aspect vous a le plus satisfait ?", type: "textarea", placeholder: "Ce qui m'a le plus marqué…" },
-      { id: "amelioration", label: "Un point d'amélioration ?", type: "textarea", placeholder: "Ce qui pourrait être amélioré…" },
-      { id: "recommandation", label: "Recommanderiez-vous Insuffle ?", type: "select", options: ["Oui, sans hésiter", "Oui, probablement", "Je ne sais pas", "Non"] },
+      { id: "objectif-atteint", label: "L'objectif du séminaire a-t-il été atteint ?", type: "select", required: true, options: ["Totalement", "En grande partie", "Partiellement", "Pas vraiment"] },
+      { id: "alignement", label: "Alignement de l'équipe après le séminaire", type: "note" },
+      { id: "facilitation", label: "Qualité de la facilitation (Yoan)", type: "note" },
+      { id: "decisions", label: "Les décisions prises sont-elles claires et actionnables ?", type: "select", options: ["Oui, très claires", "Plutôt claires", "Encore floues", "Non"] },
+      { id: "moment-fort", label: "Quel a été le moment le plus marquant ?", type: "textarea", placeholder: "Le moment où quelque chose a basculé…" },
+      { id: "suite", label: "Que comptez-vous mettre en place dès lundi ?", type: "textarea", placeholder: "Les premières actions concrètes…" },
+      { id: "recommandation", label: "Recommanderiez-vous ce séminaire à un autre dirigeant ?", type: "select", options: ["Oui, sans hésiter", "Oui, probablement", "Je ne sais pas", "Non"] },
     ],
   },
   {
-    id: "accompagnement", label: "Accompagnement",
-    description: "Retours sur la qualité de l'accompagnement et du suivi",
-    icon: "hand", color: "#3b82f6", noteStyle: "stars",
+    id: "seminaire-vision", label: "Séminaire Vision (Futur Désiré®)",
+    description: "Séminaire de 2 jours pour construire une vision collective et mobiliser les équipes",
+    icon: "star", color: "#8b5cf6", noteStyle: "stars",
     champs: [
-      { id: "disponibilite", label: "Disponibilité de l'équipe", type: "note" },
-      { id: "ecoute", label: "Qualité d'écoute", type: "note" },
-      { id: "suivi", label: "Qualité du suivi", type: "note" },
-      { id: "attentes", label: "L'accompagnement a-t-il répondu à vos attentes ?", type: "textarea", placeholder: "Décrivez votre expérience…" },
+      { id: "clarte-vision", label: "La vision construite est-elle claire pour vous ?", type: "note" },
+      { id: "engagement", label: "Votre niveau d'engagement après le séminaire", type: "note" },
+      { id: "facilitation", label: "Qualité de la facilitation", type: "note" },
+      { id: "avant-apres", label: "Qu'est-ce qui a changé dans votre compréhension de la direction de l'entreprise ?", type: "textarea", required: true, placeholder: "Avant le séminaire, je pensais que… Maintenant…" },
+      { id: "ambassadeur", label: "Vous sentez-vous ambassadeur de cette vision ?", type: "select", options: ["Oui, totalement", "Oui, en partie", "Pas encore", "Non"] },
+      { id: "emotion", label: "En un mot, qu'avez-vous ressenti pendant ces 2 jours ?", type: "text", placeholder: "Ex : clarté, énergie, espoir…" },
     ],
   },
   {
-    id: "resultats", label: "Résultats obtenus",
-    description: "Témoignages axés sur les résultats concrets et mesurables",
-    icon: "chart", color: "#10b981", noteStyle: "smileys",
+    id: "seminaire-cohesion", label: "Séminaire Cohésion d'équipe",
+    description: "Séminaire de régulation pour remettre le dialogue au centre et recréer la confiance",
+    icon: "hand", color: "#14b8a6", noteStyle: "smileys",
     champs: [
-      { id: "impact", label: "Quel a été l'impact principal ?", type: "textarea", required: true, placeholder: "L'impact concret sur votre organisation…" },
-      { id: "mesurable", label: "Avez-vous observé des résultats mesurables ?", type: "select", options: ["Oui, très clairement", "Oui, partiellement", "Pas encore", "Non"] },
-      { id: "delai", label: "En combien de temps avez-vous vu les premiers résultats ?", type: "select", options: ["Immédiatement", "Quelques semaines", "1-3 mois", "Plus de 3 mois"] },
+      { id: "climat", label: "Comment jugez-vous le climat d'équipe après le séminaire ?", type: "note" },
+      { id: "non-dits", label: "Les vrais sujets ont-ils pu être abordés ?", type: "select", options: ["Oui, en profondeur", "Oui, en surface", "Pas assez", "Non, pas du tout"] },
+      { id: "confiance", label: "Niveau de confiance dans l'équipe après le séminaire", type: "note" },
+      { id: "cadre-securisant", label: "Le cadre posé par le facilitateur était-il sécurisant ?", type: "select", options: ["Tout à fait", "Plutôt oui", "Pas suffisamment", "Non"] },
+      { id: "engagement", label: "Qu'est-ce que vous vous engagez à changer ?", type: "textarea", placeholder: "Ce que je fais différemment dès demain…" },
+      { id: "amelioration", label: "Un point à améliorer pour la prochaine fois ?", type: "textarea", placeholder: "Ce qui pourrait être mieux…" },
     ],
   },
   {
-    id: "transformation", label: "Transformation organisationnelle",
-    description: "Retours sur les changements structurels et culturels observés",
-    icon: "refresh", color: "#8b5cf6", noteStyle: "scale",
+    id: "offsite-strategique", label: "Offsite Stratégique",
+    description: "Séminaire résidentiel de 2-3 jours pour prendre des décisions structurantes",
+    icon: "chart", color: "#f59e0b", noteStyle: "scale",
     champs: [
-      { id: "avant-apres", label: "Décrivez la situation avant et après", type: "textarea", required: true, placeholder: "Avant l'intervention… Après l'intervention…" },
-      { id: "changement-culture", label: "Changement culturel observé", type: "note" },
-      { id: "adhesion-equipe", label: "Adhésion des équipes", type: "note" },
-      { id: "perennite", label: "Les changements sont-ils durables ?", type: "select", options: ["Oui, pleinement ancrés", "En cours d'ancrage", "Trop tôt pour dire", "Non"] },
+      { id: "qualite-decisions", label: "Qualité des décisions prises", type: "note" },
+      { id: "methode", label: "Pertinence de la méthode de travail proposée", type: "note" },
+      { id: "lieu-format", label: "Le format résidentiel a-t-il ajouté de la valeur ?", type: "select", options: ["Oui, indispensable", "Oui, un plus", "Neutre", "Non, pas nécessaire"] },
+      { id: "impact-strategique", label: "Quel impact sur votre stratégie d'entreprise ?", type: "textarea", required: true, placeholder: "Ce qui a vraiment bougé pour l'entreprise…" },
+      { id: "calendrier", label: "Le calendrier de mise en œuvre est-il réaliste ?", type: "select", options: ["Oui, très réaliste", "Oui, ambitieux mais faisable", "Trop ambitieux", "Pas défini"] },
+    ],
+  },
+  // ── Ateliers ────────────────────────────────────────────────
+  {
+    id: "atelier-intelligence-collective", label: "Atelier Intelligence Collective",
+    description: "Atelier collaboratif pour résoudre un défi complexe grâce à l'intelligence collective",
+    icon: "lightbulb", color: "#10b981", noteStyle: "smileys",
+    champs: [
+      { id: "pertinence-sujet", label: "Le sujet traité était-il pertinent pour vous ?", type: "select", options: ["Tout à fait", "Plutôt oui", "Moyennement", "Non"] },
+      { id: "participation", label: "Avez-vous pu vous exprimer librement ?", type: "note" },
+      { id: "dynamique-groupe", label: "Dynamique du groupe", type: "note" },
+      { id: "solutions", label: "Les solutions trouvées collectivement sont-elles concrètes ?", type: "select", options: ["Oui, très concrètes", "Oui, à affiner", "Trop vagues", "Non"] },
+      { id: "apprentissage", label: "Qu'avez-vous appris sur la façon de travailler ensemble ?", type: "textarea", placeholder: "Ce qui m'a surpris dans notre intelligence collective…" },
+      { id: "reutiliser", label: "Allez-vous réutiliser cette méthode dans votre équipe ?", type: "select", options: ["Oui, dès que possible", "Oui, à adapter", "Peut-être", "Non"] },
     ],
   },
   {
-    id: "diagnostic", label: "Diagnostic Boussole 4C",
-    description: "Avis spécifiques à l'outil de diagnostic Boussole 4C",
+    id: "atelier-innovation", label: "Atelier Innovation & Créativité",
+    description: "Hackathon ou atelier créatif pour générer des idées et prototyper des solutions",
+    icon: "rocket", color: "#ec4899", noteStyle: "thumbs",
+    champs: [
+      { id: "creativite", label: "L'atelier a-t-il libéré votre créativité ?", type: "note" },
+      { id: "cadre-creatif", label: "Le cadre proposé favorisait-il l'innovation ?", type: "select", options: ["Oui, très stimulant", "Oui, plutôt bien", "Pas assez", "Non, trop contraint"] },
+      { id: "idee-retenue", label: "Quelle idée ou solution retenez-vous ?", type: "textarea", required: true, placeholder: "L'idée qui a émergé et que je retiens…" },
+      { id: "faisabilite", label: "Cette idée est-elle réaliste à mettre en œuvre ?", type: "select", options: ["Oui, rapidement", "Oui, avec du travail", "Incertain", "Non"] },
+      { id: "energie", label: "Niveau d'énergie pendant l'atelier", type: "note" },
+    ],
+  },
+  {
+    id: "atelier-regulation", label: "Atelier Régulation & Conflits",
+    description: "Atelier de résolution de tensions et construction d'accords de fonctionnement",
+    icon: "shield", color: "#ef4444", noteStyle: "smileys",
+    champs: [
+      { id: "securite", label: "Vous êtes-vous senti(e) en sécurité pour vous exprimer ?", type: "note" },
+      { id: "ecoute", label: "Qualité d'écoute du groupe", type: "note" },
+      { id: "resolution", label: "Les tensions abordées ont-elles été désamorcées ?", type: "select", options: ["Oui, significativement", "En partie", "Peu", "Non"] },
+      { id: "accords", label: "Les accords pris sont-ils clairs et acceptés par tous ?", type: "select", options: ["Oui, par tous", "Oui, par la majorité", "Pas vraiment", "Non"] },
+      { id: "ressenti", label: "Comment vous sentez-vous après cet atelier ?", type: "textarea", placeholder: "Mon ressenti en quittant la salle…" },
+    ],
+  },
+  // ── Formations (Académie Insuffle) ──────────────────────────
+  {
+    id: "formation-facilitation", label: "Formation Facilitation & Intelligence Collective",
+    description: "Formation certifiante de 3 jours (21h) — postures, outils et pratique de la facilitation",
+    icon: "book", color: "#3b82f6", noteStyle: "stars",
+    champs: [
+      { id: "contenu", label: "Qualité et richesse du contenu", type: "note" },
+      { id: "pedagogie", label: "Qualité pédagogique (80% pratique)", type: "note" },
+      { id: "formateur", label: "Qualité du formateur", type: "note" },
+      { id: "applicabilite", label: "Allez-vous appliquer ce que vous avez appris ?", type: "select", required: true, options: ["Oui, dès cette semaine", "Oui, dans le mois", "J'ai besoin de digérer", "Ce sera difficile"] },
+      { id: "outil-prefere", label: "Quel outil ou méthode vous a le plus marqué ?", type: "textarea", placeholder: "L'outil que je vais réutiliser en premier…" },
+      { id: "posture", label: "Qu'avez-vous compris sur la posture de facilitateur ?", type: "textarea", placeholder: "Ce qui a changé dans ma compréhension du rôle…" },
+      { id: "format-ideal", label: "Le format 3 jours est-il adapté ?", type: "select", options: ["Parfait", "Un peu court", "Un peu long", "À revoir"] },
+      { id: "recommandation", label: "Recommanderiez-vous cette formation ?", type: "select", options: ["Oui, absolument", "Oui, probablement", "Peut-être", "Non"] },
+    ],
+  },
+  {
+    id: "formation-manager-facilitateur", label: "Formation Manager Facilitateur",
+    description: "Formation de 3 jours (21h) pour intégrer la facilitation dans le management au quotidien",
+    icon: "users", color: "#6366f1", noteStyle: "stars",
+    champs: [
+      { id: "contenu", label: "Pertinence du contenu pour votre quotidien de manager", type: "note" },
+      { id: "pedagogie", label: "Qualité pédagogique", type: "note" },
+      { id: "formateur", label: "Qualité du formateur", type: "note" },
+      { id: "changement-posture", label: "Qu'est-ce qui change dans votre façon de manager ?", type: "textarea", required: true, placeholder: "Avant la formation, je… Maintenant, je…" },
+      { id: "premier-pas", label: "Quelle est la première chose que vous allez tester avec votre équipe ?", type: "textarea", placeholder: "Dès lundi, je vais…" },
+      { id: "difficulte", label: "Qu'est-ce qui sera le plus difficile à appliquer ?", type: "textarea", placeholder: "Ce qui me challenge…" },
+      { id: "recommandation", label: "Recommanderiez-vous cette formation à un autre manager ?", type: "select", options: ["Oui, absolument", "Oui, probablement", "Peut-être", "Non"] },
+    ],
+  },
+  {
+    id: "formation-ia-generative", label: "Formation IA Générative",
+    description: "Formation d'une journée (7h) sur l'utilisation de l'IA générative (Claude, Gemini, etc.)",
+    icon: "zap", color: "#0ea5e9", noteStyle: "smileys",
+    champs: [
+      { id: "niveau-avant", label: "Votre niveau avant la formation", type: "select", options: ["Débutant total", "Quelques notions", "Utilisateur régulier", "Avancé"] },
+      { id: "niveau-apres", label: "Votre niveau après la formation", type: "select", options: ["Débutant", "Capable d'utiliser les bases", "Autonome", "Confiant et créatif"] },
+      { id: "contenu", label: "Qualité du contenu", type: "note" },
+      { id: "rythme", label: "Le rythme était-il adapté ?", type: "select", options: ["Parfait", "Un peu rapide", "Un peu lent", "Mal adapté"] },
+      { id: "cas-usage", label: "Quel cas d'usage allez-vous mettre en place ?", type: "textarea", required: true, placeholder: "Comment je vais utiliser l'IA dans mon travail…" },
+      { id: "crainte", label: "Avez-vous encore des craintes vis-à-vis de l'IA ?", type: "textarea", placeholder: "Ce qui me questionne encore…" },
+    ],
+  },
+  {
+    id: "formation-sketchnoting", label: "Formation Sketchnoting",
+    description: "Formation de 2 jours (14h) pour maîtriser la prise de notes visuelles",
+    icon: "pen", color: "#f97316", noteStyle: "smileys",
+    champs: [
+      { id: "contenu", label: "Qualité du contenu", type: "note" },
+      { id: "pedagogie", label: "Approche pédagogique", type: "note" },
+      { id: "progression", label: "Sentez-vous une progression dans vos dessins ?", type: "select", options: ["Oui, énorme", "Oui, significative", "Un peu", "Pas vraiment"] },
+      { id: "usage", label: "Où allez-vous utiliser le sketchnoting ?", type: "textarea", placeholder: "En réunion, pour mes comptes-rendus, pour…" },
+      { id: "confiance", label: "Avez-vous pris confiance dans votre capacité à dessiner ?", type: "select", options: ["Oui, totalement", "Oui, un peu plus", "Pas encore", "Non"] },
+    ],
+  },
+  // ── Accompagnement & Coaching ───────────────────────────────
+  {
+    id: "coaching-codir", label: "Coaching CODIR",
+    description: "Accompagnement long (6-12 mois) d'un comité de direction dans sa transformation",
+    icon: "refresh", color: "#0d9488", noteStyle: "scale",
+    champs: [
+      { id: "evolution-equipe", label: "Comment l'équipe de direction a-t-elle évolué ?", type: "textarea", required: true, placeholder: "Ce qui a changé dans notre façon de fonctionner…" },
+      { id: "qualite-relation", label: "Qualité de la relation avec Yoan/Insuffle", type: "note" },
+      { id: "pertinence-interventions", label: "Pertinence des interventions et outils proposés", type: "note" },
+      { id: "impact-business", label: "Impact sur la performance de l'entreprise", type: "note" },
+      { id: "autonomie", label: "Êtes-vous plus autonomes en tant qu'équipe de direction ?", type: "select", options: ["Oui, nettement", "Oui, progressivement", "Pas encore", "Non"] },
+      { id: "duree", label: "La durée de l'accompagnement était-elle adaptée ?", type: "select", options: ["Parfaite", "Un peu courte", "Un peu longue", "Mal calibrée"] },
+      { id: "suite", label: "Envisagez-vous de poursuivre l'accompagnement ?", type: "select", options: ["Oui, déjà prévu", "Oui, probablement", "En réflexion", "Non, mission accomplie"] },
+    ],
+  },
+  // ── Diagnostic ──────────────────────────────────────────────
+  {
+    id: "diagnostic-boussole-4c", label: "Diagnostic Boussole 4C",
+    description: "Retour sur l'utilisation du diagnostic Boussole 4C (Cap, Cadence, Contraintes, Capacités)",
     icon: "compass", color: "#f59e0b", noteStyle: "stars",
     champs: [
-      { id: "clarte", label: "Clarté du diagnostic", type: "note" },
-      { id: "pertinence", label: "Pertinence des recommandations", type: "note" },
-      { id: "utilite", label: "L'outil Boussole 4C vous a-t-il été utile ?", type: "textarea", placeholder: "Comment l'avez-vous utilisé…" },
-      { id: "actions", label: "Quelles actions avez-vous mises en place suite au diagnostic ?", type: "textarea", placeholder: "Les changements concrets…" },
+      { id: "clarte-diagnostic", label: "Le diagnostic vous a-t-il apporté de la clarté ?", type: "note" },
+      { id: "dimension-utile", label: "Quelle dimension vous a le plus éclairé ?", type: "select", required: true, options: ["Cap (direction)", "Cadence (rythme)", "Contraintes (freins)", "Capacités (forces)", "Les 4 ensemble"] },
+      { id: "pertinence", label: "Pertinence des constats et recommandations", type: "note" },
+      { id: "surprise", label: "Qu'est-ce qui vous a le plus surpris dans les résultats ?", type: "textarea", placeholder: "Ce que je ne voyais pas avant…" },
+      { id: "actions", label: "Quelles actions avez-vous lancées suite au diagnostic ?", type: "textarea", placeholder: "Les changements concrets…" },
+      { id: "refaire", label: "Referiez-vous un diagnostic dans 6-12 mois ?", type: "select", options: ["Oui, pour mesurer l'évolution", "Peut-être", "Non, une fois suffit"] },
     ],
   },
+];
+
+const DEFAULT_EVENEMENTS: Evenement[] = [
   {
-    id: "formation", label: "Formation & Coaching",
-    description: "Témoignages liés aux formations et séances de coaching",
-    icon: "book", color: "#ec4899", noteStyle: "smileys",
-    champs: [
-      { id: "contenu-formation", label: "Qualité du contenu", type: "note" },
-      { id: "pedagogie", label: "Qualité pédagogique", type: "note" },
-      { id: "applicabilite", label: "Applicabilité au quotidien", type: "note" },
-      { id: "apprentissage", label: "Qu'avez-vous appris de plus marquant ?", type: "textarea", placeholder: "Les apprentissages clés…" },
-      { id: "format-prefere", label: "Format préféré", type: "select", options: ["Présentiel", "Distanciel", "Hybride", "Coaching individuel"] },
-    ],
+    id: "seminaire-codir-demo",
+    nom: "Séminaire CODIR — Alignement stratégique",
+    description: "Séminaire d'une journée pour aligner le comité de direction sur les priorités à 90 jours",
+    typeId: "seminaire-codir",
+    date: "2026-06-15",
+    lieu: "Paris",
+    marque: "insuffle",
+    actif: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "formation-facilitation-juin-2026",
+    nom: "Formation Facilitation & Intelligence Collective — Juin 2026",
+    description: "Session de 3 jours pour acquérir les fondamentaux de la facilitation",
+    typeId: "formation-facilitation",
+    date: "2026-06-23",
+    lieu: "Rouen",
+    marque: "academie",
+    actif: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "atelier-ic-demo",
+    nom: "Atelier Intelligence Collective — Résolution de défi",
+    description: "Atelier d'une demi-journée pour résoudre un défi complexe en intelligence collective",
+    typeId: "atelier-intelligence-collective",
+    date: "2026-07-03",
+    lieu: "En entreprise",
+    marque: "insuffle",
+    actif: true,
+    createdAt: new Date().toISOString(),
   },
 ];
 
@@ -104,7 +250,7 @@ async function ensureDataDir(): Promise<void> {
   try {
     await fs.access(EVENEMENTS_FILE);
   } catch {
-    await fs.writeFile(EVENEMENTS_FILE, "[]", "utf-8");
+    await fs.writeFile(EVENEMENTS_FILE, JSON.stringify(DEFAULT_EVENEMENTS, null, 2), "utf-8");
   }
 
   initialized = true;
