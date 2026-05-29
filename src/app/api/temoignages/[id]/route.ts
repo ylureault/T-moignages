@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTemoignages, saveTemoignages } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, isAdmin } from "@/lib/auth";
 import type { Temoignage } from "@/types";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -18,6 +18,28 @@ export async function GET(
       { success: false, error: "Témoignage non trouvé" },
       { status: 404 }
     );
+  }
+
+  const admin = isAdmin(request);
+
+  // Non-admin : un témoignage non publié n'est pas accessible, et les champs
+  // privés (préfixés "_", ex. email du soumissionnaire) sont retirés.
+  if (!admin) {
+    if (temoignage.publie === false) {
+      return NextResponse.json(
+        { success: false, error: "Témoignage non trouvé" },
+        { status: 404 }
+      );
+    }
+    const champsPublics = temoignage.champsPersonnalises
+      ? Object.fromEntries(
+          Object.entries(temoignage.champsPersonnalises).filter(([k]) => !k.startsWith("_"))
+        )
+      : undefined;
+    return NextResponse.json({
+      success: true,
+      data: { ...temoignage, champsPersonnalises: champsPublics },
+    });
   }
 
   return NextResponse.json({ success: true, data: temoignage });

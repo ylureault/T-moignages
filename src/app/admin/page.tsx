@@ -1153,7 +1153,7 @@ function TypeForm({ initial, onSaved, onClose }: { initial: TypeTemoignage | nul
           <div className="space-y-4">
             <div>
               <label className={labelClass}>ID *</label>
-              <input required value={form.id} onChange={update("id")} disabled={!!initial} className={`${inputClass} disabled:cursor-not-allowed disabled:text-slate-400`} placeholder="mon-type" />
+              <input required value={form.id} onChange={update("id")} disabled={!!initial || savedOnce} className={`${inputClass} disabled:cursor-not-allowed disabled:text-slate-400`} placeholder="mon-type" />
             </div>
             <div>
               <label className={labelClass}>Label *</label>

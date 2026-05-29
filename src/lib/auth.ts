@@ -20,6 +20,8 @@ function hashToken(token: string): string {
 
 const sessions = new Map<string, number>();
 
+const SECURE = process.env.NODE_ENV === "production" ? " Secure;" : "";
+
 export function createSession(): { token: string; cookie: string } {
   const token = randomBytes(32).toString("hex");
   const hashed = hashToken(token);
@@ -29,12 +31,12 @@ export function createSession(): { token: string; cookie: string } {
     if (exp < Date.now()) sessions.delete(k);
   }
 
-  const cookie = `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_MAX_AGE}`;
+  const cookie = `${SESSION_COOKIE}=${token}; HttpOnly;${SECURE} SameSite=Lax; Path=/; Max-Age=${SESSION_MAX_AGE}`;
   return { token, cookie };
 }
 
 export function clearSession(): string {
-  return `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
+  return `${SESSION_COOKIE}=; HttpOnly;${SECURE} SameSite=Lax; Path=/; Max-Age=0`;
 }
 
 function isValidSession(request: NextRequest): boolean {

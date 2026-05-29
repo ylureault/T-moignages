@@ -2,8 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTemoignages, saveTemoignages, generateId } from "@/lib/db";
 import { requireAuth, isAdmin } from "@/lib/auth";
 import { validateTemoignage } from "@/lib/validate";
+import type { Temoignage } from "@/types";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Retire les champs personnalisés privés (préfixés "_", ex. _email du
+ * soumissionnaire) avant exposition publique. Réservés à l'admin.
+ */
+function stripPrivateFields(t: Temoignage): Temoignage {
+  if (!t.champsPersonnalises) return t;
+  const champsPublics = Object.fromEntries(
+    Object.entries(t.champsPersonnalises).filter(([k]) => !k.startsWith("_"))
+  );
+  return { ...t, champsPersonnalises: champsPublics };
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -12,7 +25,7 @@ export async function GET(request: NextRequest) {
 
   const admin = isAdmin(request);
   if (!admin) {
-    results = results.filter((t) => t.publie !== false);
+    results = results.filter((t) => t.publie !== false).map(stripPrivateFields);
   }
 
   const type = searchParams.get("type");
