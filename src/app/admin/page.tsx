@@ -763,6 +763,15 @@ function TypesView({ apiKey }: { apiKey: string }) {
   const [editing, setEditing] = useState<TypeTemoignage | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  function copyFormLink(typeId: string) {
+    const url = `${window.location.origin}/temoignages/nouveau?type=${typeId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(typeId);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  }
 
   const loadTypes = useCallback(() => {
     setLoading(true);
@@ -814,6 +823,18 @@ function TypesView({ apiKey }: { apiKey: string }) {
               </div>
             </div>
             <p className="mb-4 text-sm text-slate-400">{t.description || "Pas de description"}</p>
+            <div className="mb-3 rounded-lg bg-slate-900/50 px-3 py-2">
+              <p className="mb-1 text-xs text-slate-500">Lien du formulaire client</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 truncate text-xs text-teal-400">/temoignages/nouveau?type={t.id}</code>
+                <button
+                  onClick={() => copyFormLink(t.id)}
+                  className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-400 transition-colors hover:text-teal-400"
+                >
+                  {copied === t.id ? "Copié !" : "Copier"}
+                </button>
+              </div>
+            </div>
             <div className="flex gap-2">
               <button onClick={() => setEditing(t)} className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-slate-400 transition-colors hover:text-white">
                 Modifier

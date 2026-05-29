@@ -1,11 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Logo } from "@/components/Logo";
 
 type Status = "idle" | "loading" | "success" | "error";
 
+interface TypeInfo {
+  id: string;
+  label: string;
+  description: string;
+  icon: string;
+  color: string;
+}
+
 export default function NouveauTemoignagePage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-sand"><div className="h-8 w-8 animate-spin rounded-full border-2 border-accent/30 border-t-accent" /></div>}>
+      <NouveauTemoignageContent />
+    </Suspense>
+  );
+}
+
+function NouveauTemoignageContent() {
+  const searchParams = useSearchParams();
+  const typeParam = searchParams.get("type");
+  const marqueParam = searchParams.get("marque");
+
   const [note, setNote] = useState(0);
   const [hover, setHover] = useState(0);
   const [form, setForm] = useState({
@@ -13,11 +34,34 @@ export default function NouveauTemoignagePage() {
     poste: "",
     entreprise: "",
     email: "",
-    marque: "insuffle",
+    marque: marqueParam === "academie" ? "academie" : "insuffle",
     contenu: "",
   });
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState("");
+
+  const [typeInfo, setTypeInfo] = useState<TypeInfo | null>(null);
+  const [allTypes, setAllTypes] = useState<TypeInfo[]>([]);
+  const [selectedType, setSelectedType] = useState<string>(typeParam || "");
+  const [typesLoaded, setTypesLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/types")
+      .then((r) => r.json())
+      .then((d) => {
+        const types: TypeInfo[] = d.data || [];
+        setAllTypes(types);
+        if (typeParam) {
+          const found = types.find((t) => t.id === typeParam);
+          if (found) {
+            setTypeInfo(found);
+            setSelectedType(found.id);
+          }
+        }
+        setTypesLoaded(true);
+      })
+      .catch(() => setTypesLoaded(true));
+  }, [typeParam]);
 
   const update = (k: keyof typeof form) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -38,7 +82,7 @@ export default function NouveauTemoignagePage() {
       const res = await fetch("/api/temoignages/soumettre", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, note }),
+        body: JSON.stringify({ ...form, note, type: selectedType || undefined }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -75,6 +119,58 @@ export default function NouveauTemoignagePage() {
     );
   }
 
+  // If no type selected and we have types available, show type picker
+  if (typesLoaded && !selectedType && allTypes.length > 0 && !typeParam) {
+    return (
+      <div className="min-h-screen bg-sand">
+        <div className="border-b border-line bg-paper/85 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-4">
+            <Logo />
+            <a href="/temoignages" className="text-sm font-medium text-muted transition-colors hover:text-ink">
+              Retour
+            </a>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-3xl px-6 py-12 md:py-16">
+          <div className="animate-fade-up text-center">
+            <h1 className="font-display text-3xl font-bold leading-tight text-ink md:text-4xl">
+              Partagez votre <span className="accent-underline text-accent">expérience</span>
+            </h1>
+            <p className="mx-auto mt-3 max-w-md text-muted">
+              Choisissez le type de témoignage qui correspond le mieux.
+            </p>
+          </div>
+
+          <div className="animate-fade-up delay-1 mt-10 grid gap-4 sm:grid-cols-2">
+            {allTypes.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => { setSelectedType(t.id); setTypeInfo(t); }}
+                className="group rounded-2xl border border-line bg-paper p-6 text-left transition-all hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-lg"
+              >
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl text-lg" style={{ backgroundColor: t.color + "1a", color: t.color }}>
+                  {t.icon === "star" ? "★" : t.icon === "hand" ? "🤝" : t.icon === "chart" ? "📊" : t.icon === "refresh" ? "🔄" : t.icon === "compass" ? "🧭" : t.icon === "book" ? "📚" : t.icon.charAt(0).toUpperCase()}
+                </div>
+                <h3 className="font-display font-semibold text-ink transition-colors group-hover:text-accent">{t.label}</h3>
+                <p className="mt-1 text-sm text-muted">{t.description}</p>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => setSelectedType("_general")}
+              className="text-sm font-medium text-muted transition-colors hover:text-accent"
+            >
+              Continuer sans choisir →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-sand">
       {/* En-tête simple */}
@@ -89,13 +185,27 @@ export default function NouveauTemoignagePage() {
 
       <div className="mx-auto max-w-2xl px-6 py-12 md:py-16">
         <div className="animate-fade-up text-center">
-          <h1 className="font-display text-3xl font-bold leading-tight text-ink md:text-4xl">
-            Partagez votre <span className="accent-underline text-accent">expérience</span>
-          </h1>
-          <p className="mx-auto mt-3 max-w-md text-muted">
-            Votre retour aide d&apos;autres dirigeants à franchir le pas. Sans
-            langue de bois.
-          </p>
+          {typeInfo ? (
+            <>
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl text-xl" style={{ backgroundColor: typeInfo.color + "1a", color: typeInfo.color }}>
+                {typeInfo.icon === "star" ? "★" : typeInfo.icon === "hand" ? "🤝" : typeInfo.icon === "chart" ? "📊" : typeInfo.icon === "refresh" ? "🔄" : typeInfo.icon === "compass" ? "🧭" : typeInfo.icon === "book" ? "📚" : typeInfo.icon.charAt(0).toUpperCase()}
+              </div>
+              <h1 className="font-display text-3xl font-bold leading-tight text-ink md:text-4xl">
+                {typeInfo.label}
+              </h1>
+              <p className="mx-auto mt-3 max-w-md text-muted">{typeInfo.description}</p>
+            </>
+          ) : (
+            <>
+              <h1 className="font-display text-3xl font-bold leading-tight text-ink md:text-4xl">
+                Partagez votre <span className="accent-underline text-accent">expérience</span>
+              </h1>
+              <p className="mx-auto mt-3 max-w-md text-muted">
+                Votre retour aide d&apos;autres dirigeants à franchir le pas. Sans
+                langue de bois.
+              </p>
+            </>
+          )}
         </div>
 
         <form
@@ -185,6 +295,28 @@ export default function NouveauTemoignagePage() {
               </select>
             </Field>
           </div>
+
+          {/* Type selector — only if not already set from URL */}
+          {!typeParam && allTypes.length > 0 && (
+            <div className="mt-5">
+              <Field label="Type de témoignage">
+                <select
+                  value={selectedType}
+                  onChange={(e) => {
+                    setSelectedType(e.target.value);
+                    const found = allTypes.find((t) => t.id === e.target.value);
+                    setTypeInfo(found || null);
+                  }}
+                  className="input"
+                >
+                  <option value="">— Général —</option>
+                  {allTypes.map((t) => (
+                    <option key={t.id} value={t.id}>{t.label}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          )}
 
           <div className="mt-5">
             <Field label="Votre témoignage" required>
