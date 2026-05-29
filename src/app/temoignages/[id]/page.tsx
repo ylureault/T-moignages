@@ -4,6 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Stars } from "@/components/Stars";
 import { SourceBadge } from "@/components/SourceBadge";
+import { TestimonialShare } from "@/components/TestimonialShare";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +24,22 @@ function formatDate(iso: string) {
   }
 }
 
+function anonymise(nom: string) {
+  const parts = nom.trim().split(/\s+/);
+  const prenom = parts[0] || "";
+  const nomFamille = parts[1] || "";
+  return nomFamille ? `${prenom} ${nomFamille.charAt(0).toUpperCase()}.` : prenom;
+}
+
 export default async function TemoignagePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ anon?: string; mode?: string }>;
 }) {
   const { id } = await params;
+  const { anon, mode } = await searchParams;
   const temoignages = await getTemoignages();
   const t = temoignages.find((x) => x.id === id);
   if (!t || t.publie === false) notFound();
@@ -36,6 +47,46 @@ export default async function TemoignagePage({
   const [types, evenements] = await Promise.all([getTypes(), getEvenements()]);
   const typeInfo = types.find((tp) => tp.id === t.type);
   const eventInfo = t.evenementId ? evenements.find((e) => e.id === t.evenementId) : null;
+
+  const isAnon = anon === "1";
+  const displayName = isAnon ? anonymise(t.auteur) : t.auteur;
+  const displayInitials = isAnon
+    ? (t.auteur.trim().charAt(0) || "?").toUpperCase()
+    : initials(t.auteur);
+
+  // ── Mode citation pleine page (partageable) ──────────────────
+  if (mode === "quote") {
+    return (
+      <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-navy px-6 py-16 text-center">
+        <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />
+        <div className="absolute -bottom-40 -left-20 h-96 w-96 rounded-full bg-accent/10 blur-3xl" />
+        <div className="relative mx-auto max-w-3xl">
+          <div className="mb-6 flex justify-center"><Stars note={t.note} size={26} /></div>
+          <blockquote className="font-display text-2xl font-semibold leading-snug text-white sm:text-4xl md:text-5xl md:leading-[1.2]">
+            <span className="text-accent">&ldquo;</span>
+            {t.contenu}
+            <span className="text-accent">&rdquo;</span>
+          </blockquote>
+          <div className="mt-10 flex items-center justify-center gap-3">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 font-display text-base font-semibold text-white">
+              {displayInitials}
+            </span>
+            <div className="text-left">
+              <p className="font-display text-lg font-bold text-white">{displayName}</p>
+              <p className="text-sm text-white/60">
+                {t.poste}
+                {t.poste && !isAnon && t.entreprise ? " · " : ""}
+                {!isAnon && t.entreprise}
+              </p>
+            </div>
+          </div>
+          <div className="mt-12">
+            <p className="text-xs uppercase tracking-widest text-white/40">Insuffle · Clarté Vivante</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -87,14 +138,14 @@ export default async function TemoignagePage({
             <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
               <div className="flex items-center gap-3 sm:gap-4">
                 <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-navy font-display text-base font-semibold text-white sm:h-14 sm:w-14 sm:text-lg">
-                  {initials(t.auteur)}
+                  {displayInitials}
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate font-display text-base font-bold text-ink sm:text-lg">{t.auteur}</p>
+                  <p className="truncate font-display text-base font-bold text-ink sm:text-lg">{displayName}</p>
                   <p className="truncate text-sm text-muted">
                     {t.poste}
-                    {t.poste && t.entreprise ? " · " : ""}
-                    {t.entreprise}
+                    {t.poste && !isAnon && t.entreprise ? " · " : ""}
+                    {!isAnon && t.entreprise}
                   </p>
                 </div>
               </div>
@@ -173,8 +224,13 @@ export default async function TemoignagePage({
             </div>
           )}
 
+          {/* Partage */}
+          <div className="mt-6">
+            <TestimonialShare id={t.id} />
+          </div>
+
           {/* CTA */}
-          <div className="mt-8 rounded-2xl bg-card p-6 text-center sm:mt-10 sm:p-8 md:p-10">
+          <div className="mt-6 rounded-2xl bg-card p-6 text-center sm:p-8 md:p-10">
             <h2 className="font-display text-xl font-bold text-white sm:text-2xl md:text-3xl">
               Et si c&apos;était votre tour&nbsp;?
             </h2>

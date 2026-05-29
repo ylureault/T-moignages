@@ -36,11 +36,13 @@ export async function POST(request: NextRequest) {
     nom: body.nom,
     description: body.description || "",
     typeId: body.typeId,
+    entreprise: body.entreprise || undefined,
+    bannerImage: body.bannerImage || undefined,
     date: body.date || new Date().toISOString().split("T")[0],
     lieu: body.lieu || undefined,
     marque: body.marque === "academie" ? "academie" as const : "insuffle" as const,
     createdAt: new Date().toISOString(),
-    actif: true,
+    actif: body.actif !== undefined ? !!body.actif : true,
   };
 
   evenements.push(nouveau);

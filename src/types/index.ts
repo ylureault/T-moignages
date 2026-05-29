@@ -52,6 +52,8 @@ export interface Evenement {
   nom: string;
   description: string;
   typeId: string;
+  entreprise?: string;
+  bannerImage?: string;
   date: string;
   lieu?: string;
   marque: "insuffle" | "academie";

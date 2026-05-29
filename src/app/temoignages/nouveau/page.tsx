@@ -22,6 +22,8 @@ interface EventInfo {
   nom: string;
   description: string;
   typeId: string;
+  entreprise?: string;
+  bannerImage?: string;
   date: string;
   lieu?: string;
   marque: "insuffle" | "academie";
@@ -83,7 +85,7 @@ function NouveauTemoignageContent() {
           const evt = evtRes.data as EventInfo;
           if (!evt.actif) { setEventInactive(true); setTypesLoaded(true); return; }
           setEventInfo(evt);
-          setForm((f) => ({ ...f, marque: evt.marque || f.marque }));
+          setForm((f) => ({ ...f, marque: evt.marque || f.marque, entreprise: evt.entreprise || f.entreprise }));
           setShareUrl(`${window.location.origin}/temoignages/nouveau?event=${evt.id}`);
           if (evtRes.type) {
             const t = { ...evtRes.type, noteStyle: evtRes.type.noteStyle || "stars", champs: evtRes.type.champs || [] };
@@ -341,6 +343,12 @@ function NouveauTemoignageContent() {
       </div>
 
       <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-12 md:py-16">
+        {eventInfo?.bannerImage && (
+          <div className="animate-fade-up mb-8 overflow-hidden rounded-2xl border border-line">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={eventInfo.bannerImage} alt={eventInfo.nom} className="h-40 w-full object-cover sm:h-56" />
+          </div>
+        )}
         <div className="animate-fade-up text-center">
           {eventInfo ? (
             <>
@@ -352,6 +360,9 @@ function NouveauTemoignageContent() {
               <h1 className="font-display text-2xl font-bold leading-tight text-ink sm:text-3xl md:text-4xl">
                 {eventInfo.nom}
               </h1>
+              {eventInfo.entreprise && (
+                <p className="mt-2 text-sm font-medium text-accent">{eventInfo.entreprise}</p>
+              )}
               <p className="mx-auto mt-3 max-w-md text-sm text-muted sm:text-base">{eventInfo.description || typeInfo?.description}</p>
               {eventInfo.lieu && (
                 <p className="mt-2 text-sm text-muted-soft">{eventInfo.lieu} · {eventInfo.date}</p>

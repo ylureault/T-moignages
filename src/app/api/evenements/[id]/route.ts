@@ -51,6 +51,8 @@ export async function PUT(
   if (body.nom !== undefined) evenements[index].nom = body.nom;
   if (body.description !== undefined) evenements[index].description = body.description;
   if (body.typeId !== undefined) evenements[index].typeId = body.typeId;
+  if (body.entreprise !== undefined) evenements[index].entreprise = body.entreprise;
+  if (body.bannerImage !== undefined) evenements[index].bannerImage = body.bannerImage;
   if (body.date !== undefined) evenements[index].date = body.date;
   if (body.lieu !== undefined) evenements[index].lieu = body.lieu;
   if (body.marque !== undefined) evenements[index].marque = body.marque;

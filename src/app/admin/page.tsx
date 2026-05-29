@@ -933,7 +933,7 @@ function TypesView() {
   if (loading) return <Loader />;
 
   if (creating || editing) {
-    return <TypeForm initial={editing} onDone={() => { setEditing(null); setCreating(false); loadTypes(); }} onCancel={() => { setEditing(null); setCreating(false); }} />;
+    return <TypeForm initial={editing} onSaved={loadTypes} onClose={() => { setEditing(null); setCreating(false); loadTypes(); }} />;
   }
 
   return (
@@ -1010,7 +1010,7 @@ function TypesView() {
 }
 
 // ─── Type Form ────────────────────────────────────────────────
-function TypeForm({ initial, onDone, onCancel }: { initial: TypeTemoignage | null; onDone: () => void; onCancel: () => void }) {
+function TypeForm({ initial, onSaved, onClose }: { initial: TypeTemoignage | null; onSaved: () => void; onClose: () => void }) {
   const [form, setForm] = useState({
     id: initial?.id || "",
     label: initial?.label || "",
@@ -1021,6 +1021,7 @@ function TypeForm({ initial, onDone, onCancel }: { initial: TypeTemoignage | nul
   });
   const [champs, setChamps] = useState<ChampPersonnalise[]>(initial?.champs || []);
   const [showNewChamp, setShowNewChamp] = useState(false);
+  const [editingChampId, setEditingChampId] = useState<string | null>(null);
   const [newChamp, setNewChamp] = useState<{
     id: string;
     label: string;
@@ -1031,9 +1032,17 @@ function TypeForm({ initial, onDone, onCancel }: { initial: TypeTemoignage | nul
   }>({ id: "", label: "", type: "text", required: false, placeholder: "", options: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [savedOnce, setSavedOnce] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
 
   const update = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  function resetChampForm() {
+    setNewChamp({ id: "", label: "", type: "text", required: false, placeholder: "", options: "" });
+    setShowNewChamp(false);
+    setEditingChampId(null);
+  }
 
   function addChamp() {
     if (!newChamp.id || !newChamp.label) return;
@@ -1047,21 +1056,55 @@ function TypeForm({ initial, onDone, onCancel }: { initial: TypeTemoignage | nul
         ? newChamp.options.split(",").map((o) => o.trim()).filter(Boolean)
         : undefined,
     };
-    setChamps((prev) => [...prev, champ]);
-    setNewChamp({ id: "", label: "", type: "text", required: false, placeholder: "", options: "" });
-    setShowNewChamp(false);
+    if (editingChampId) {
+      // Remplace le champ existant en conservant sa position.
+      setChamps((prev) => prev.map((c) => (c.id === editingChampId ? champ : c)));
+    } else {
+      // Empêche les doublons d'ID.
+      if (champs.some((c) => c.id === champ.id)) {
+        setError(`Un champ avec l'ID "${champ.id}" existe déjà.`);
+        return;
+      }
+      setChamps((prev) => [...prev, champ]);
+    }
+    setError("");
+    resetChampForm();
+  }
+
+  function editChamp(champ: ChampPersonnalise) {
+    setEditingChampId(champ.id);
+    setNewChamp({
+      id: champ.id,
+      label: champ.label,
+      type: champ.type,
+      required: !!champ.required,
+      placeholder: champ.placeholder || "",
+      options: champ.options ? champ.options.join(", ") : "",
+    });
+    setShowNewChamp(true);
+  }
+
+  function moveChamp(index: number, dir: -1 | 1) {
+    setChamps((prev) => {
+      const next = [...prev];
+      const target = index + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
   }
 
   function removeChamp(id: string) {
     setChamps((prev) => prev.filter((c) => c.id !== id));
+    if (editingChampId === id) resetChampForm();
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError("");
-    const isEdit = !!initial;
-    const url = isEdit ? `/api/types/${initial!.id}` : "/api/types";
+    const isEdit = !!initial || savedOnce;
+    const url = isEdit ? `/api/types/${form.id}` : "/api/types";
     const method = isEdit ? "PUT" : "POST";
     const payload = { ...form, champs };
     try {
@@ -1072,7 +1115,11 @@ function TypeForm({ initial, onDone, onCancel }: { initial: TypeTemoignage | nul
         setSaving(false);
         return;
       }
-      onDone();
+      setSavedOnce(true);
+      setSaving(false);
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2500);
+      onSaved();
     } catch {
       setError("Erreur de connexion");
       setSaving(false);
@@ -1093,10 +1140,11 @@ function TypeForm({ initial, onDone, onCancel }: { initial: TypeTemoignage | nul
   return (
     <div>
       <div className="mb-6 flex items-center gap-4">
-        <button onClick={onCancel} className="rounded-xl bg-slate-800/50 p-2.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white">
+        <button onClick={onClose} className="rounded-xl bg-slate-800/50 p-2.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white" title="Retour à la liste">
           <Icon d={ICONS.chevronLeft} className="w-5 h-5" />
         </button>
-        <h1 className="text-xl font-bold sm:text-3xl">{initial ? "Modifier" : "Nouveau"} type</h1>
+        <h1 className="text-xl font-bold sm:text-3xl">{initial || savedOnce ? "Modifier" : "Nouveau"} type</h1>
+        {justSaved && <span className="flex items-center gap-1.5 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-sm font-medium text-emerald-400"><Icon d={ICONS.check} className="w-4 h-4" />Enregistré</span>}
       </div>
       <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border border-slate-700/50 bg-slate-800/50 p-6 backdrop-blur-sm md:p-8">
         {/* Basic info */}
@@ -1162,8 +1210,8 @@ function TypeForm({ initial, onDone, onCancel }: { initial: TypeTemoignage | nul
           {/* Existing fields */}
           {champs.length > 0 && (
             <div className="mb-4 space-y-3">
-              {champs.map((champ) => (
-                <div key={champ.id} className="flex items-start justify-between gap-3 rounded-xl border border-slate-700/50 bg-slate-900/30 p-4">
+              {champs.map((champ, index) => (
+                <div key={champ.id} className={`flex items-start justify-between gap-3 rounded-xl border p-4 ${editingChampId === champ.id ? "border-teal-500/50 bg-teal-500/5" : "border-slate-700/50 bg-slate-900/30"}`}>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium text-white">{champ.label}</span>
@@ -1188,14 +1236,20 @@ function TypeForm({ initial, onDone, onCancel }: { initial: TypeTemoignage | nul
                       </div>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeChamp(champ.id)}
-                    className="shrink-0 rounded-lg p-2 text-slate-500 transition-all hover:bg-red-500/10 hover:text-red-400"
-                    title="Supprimer le champ"
-                  >
-                    <Icon d={ICONS.trash} className="w-4 h-4" />
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button type="button" onClick={() => moveChamp(index, -1)} disabled={index === 0} className="rounded-lg p-2 text-slate-500 transition-all hover:bg-slate-700/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-30" title="Monter">
+                      <Icon d={ICONS.chevronLeft} className="w-4 h-4 rotate-90" />
+                    </button>
+                    <button type="button" onClick={() => moveChamp(index, 1)} disabled={index === champs.length - 1} className="rounded-lg p-2 text-slate-500 transition-all hover:bg-slate-700/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-30" title="Descendre">
+                      <Icon d={ICONS.chevronLeft} className="w-4 h-4 -rotate-90" />
+                    </button>
+                    <button type="button" onClick={() => editChamp(champ)} className="rounded-lg p-2 text-slate-500 transition-all hover:bg-teal-500/10 hover:text-teal-400" title="Modifier le champ">
+                      <Icon d={ICONS.edit} className="w-4 h-4" />
+                    </button>
+                    <button type="button" onClick={() => removeChamp(champ.id)} className="rounded-lg p-2 text-slate-500 transition-all hover:bg-red-500/10 hover:text-red-400" title="Supprimer le champ">
+                      <Icon d={ICONS.trash} className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1208,14 +1262,15 @@ function TypeForm({ initial, onDone, onCancel }: { initial: TypeTemoignage | nul
           {/* Add new field form */}
           {showNewChamp ? (
             <div className="rounded-xl border border-teal-500/30 bg-slate-900/50 p-4">
-              <h4 className="mb-3 text-sm font-semibold text-teal-400">Nouveau champ</h4>
+              <h4 className="mb-3 text-sm font-semibold text-teal-400">{editingChampId ? "Modifier le champ" : "Nouveau champ"}</h4>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-slate-400">ID *</label>
                   <input
                     value={newChamp.id}
                     onChange={(e) => setNewChamp((c) => ({ ...c, id: e.target.value }))}
-                    className={inputClass}
+                    disabled={!!editingChampId}
+                    className={`${inputClass} disabled:cursor-not-allowed disabled:text-slate-500`}
                     placeholder="mon-champ"
                   />
                 </div>
@@ -1279,11 +1334,11 @@ function TypeForm({ initial, onDone, onCancel }: { initial: TypeTemoignage | nul
                   disabled={!newChamp.id || !newChamp.label}
                   className="rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Ajouter
+                  {editingChampId ? "Enregistrer le champ" : "Ajouter"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setShowNewChamp(false); setNewChamp({ id: "", label: "", type: "text", required: false, placeholder: "", options: "" }); }}
+                  onClick={resetChampForm}
                   className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700"
                 >
                   Annuler
@@ -1305,10 +1360,10 @@ function TypeForm({ initial, onDone, onCancel }: { initial: TypeTemoignage | nul
         {error && <p className="rounded-xl bg-red-500/20 px-4 py-3 text-sm font-medium text-red-300">{error}</p>}
         <div className="flex items-center gap-3 pt-2">
           <button type="submit" disabled={saving} className="rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-6 py-3 font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50">
-            {saving ? "Enregistrement…" : initial ? "Mettre à jour" : "Créer"}
+            {saving ? "Enregistrement…" : initial || savedOnce ? "Mettre à jour" : "Créer"}
           </button>
-          <button type="button" onClick={onCancel} className="rounded-xl bg-slate-800/50 px-5 py-3 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
-            Annuler
+          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800/50 px-5 py-3 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
+            Retour à la liste
           </button>
         </div>
       </form>
@@ -1378,18 +1433,6 @@ function EvenementsView() {
     }
   }
 
-  async function handleSave(data: Record<string, unknown>) {
-    const isEdit = !!editing;
-    const url = isEdit ? `/api/evenements/${editing!.id}` : "/api/evenements";
-    const method = isEdit ? "PUT" : "POST";
-    const res = await apiFetch(url, { method, body: JSON.stringify(data) });
-    if (res.ok) {
-      loadData();
-      setEditing(null);
-      setCreating(false);
-    }
-  }
-
   if (loading) return <Loader />;
 
   if (creating || editing) {
@@ -1397,8 +1440,8 @@ function EvenementsView() {
       <EvenementForm
         initial={editing}
         types={types}
-        onSave={handleSave}
-        onCancel={() => { setEditing(null); setCreating(false); }}
+        onSaved={loadData}
+        onClose={() => { setEditing(null); setCreating(false); loadData(); }}
       />
     );
   }
@@ -1534,28 +1577,72 @@ function EvenementsView() {
 function EvenementForm({
   initial,
   types,
-  onSave,
-  onCancel,
+  onSaved,
+  onClose,
 }: {
   initial: Evenement | null;
   types: TypeTemoignage[];
-  onSave: (data: Record<string, unknown>) => void;
-  onCancel: () => void;
+  onSaved: () => void;
+  onClose: () => void;
 }) {
   const [form, setForm] = useState({
     nom: initial?.nom || "",
     description: initial?.description || "",
     typeId: initial?.typeId || (types[0]?.id ?? ""),
+    entreprise: initial?.entreprise || "",
+    bannerImage: initial?.bannerImage || "",
     date: initial?.date || new Date().toISOString().split("T")[0],
     lieu: initial?.lieu || "",
     marque: initial?.marque || "insuffle",
     actif: initial?.actif ?? true,
   });
+  const [uploading, setUploading] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(initial?.id || null);
+  const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  const [error, setError] = useState("");
 
   const update = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const val = e.target.type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value;
     setForm((f) => ({ ...f, [key]: val }));
   };
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    const isEdit = !!savedId;
+    const url = isEdit ? `/api/evenements/${savedId}` : "/api/evenements";
+    const method = isEdit ? "PUT" : "POST";
+    try {
+      const res = await apiFetch(url, { method, body: JSON.stringify(form) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Erreur"); setSaving(false); return; }
+      if (data.data?.id) setSavedId(data.data.id);
+      setSaving(false);
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2500);
+      onSaved();
+    } catch {
+      setError("Erreur de connexion");
+      setSaving(false);
+    }
+  }
+
+  async function handleBannerUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("folder", "heroes");
+    try {
+      const res = await apiFetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (res.ok && data.data?.url) setForm((f) => ({ ...f, bannerImage: data.data.url }));
+    } catch { /* ignore */ }
+    setUploading(false);
+  }
 
   const inputClass = "w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-3 text-white outline-none transition-all placeholder:text-slate-500 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20";
   const labelClass = "mb-2 block text-sm font-medium text-slate-300";
@@ -1563,17 +1650,20 @@ function EvenementForm({
   return (
     <div>
       <div className="mb-6 flex items-center gap-4">
-        <button onClick={onCancel} className="rounded-xl bg-slate-800/50 p-2.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white">
+        <button onClick={onClose} className="rounded-xl bg-slate-800/50 p-2.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white" title="Retour à la liste">
           <Icon d={ICONS.chevronLeft} className="w-5 h-5" />
         </button>
-        <div>
-          <h1 className="text-xl font-bold sm:text-3xl">{initial ? "Modifier" : "Nouvel"} événement</h1>
-          <p className="mt-1 text-sm text-slate-400">{initial ? `Édition de ${initial.nom}` : "Créer un nouvel événement"}</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-xl font-bold sm:text-3xl">{savedId ? "Modifier" : "Nouvel"} événement</h1>
+            <p className="mt-1 text-sm text-slate-400">{savedId ? `Édition de ${form.nom || "l'événement"}` : "Créer un nouvel événement"}</p>
+          </div>
+          {justSaved && <span className="flex items-center gap-1.5 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-sm font-medium text-emerald-400"><Icon d={ICONS.check} className="w-4 h-4" />Enregistré</span>}
         </div>
       </div>
 
       <form
-        onSubmit={(e) => { e.preventDefault(); onSave(form); }}
+        onSubmit={handleSubmit}
         className="max-w-xl space-y-4 rounded-2xl border border-slate-700/50 bg-slate-800/50 p-6 backdrop-blur-sm md:p-8"
       >
         <div>
@@ -1584,9 +1674,31 @@ function EvenementForm({
           <label className={labelClass}>Description</label>
           <textarea value={form.description} onChange={update("description")} rows={3} className={`${inputClass} resize-none`} placeholder="Description de l'événement…" />
         </div>
+        <div>
+          <label className={labelClass}>Client / Entreprise</label>
+          <input value={form.entreprise} onChange={update("entreprise")} className={inputClass} placeholder="Acme Inc." />
+          <p className="mt-1 text-xs text-slate-500">Le client lié à cet événement. Pré-rempli automatiquement dans le formulaire et les liens de partage.</p>
+        </div>
+        <div>
+          <label className={labelClass}>Bannière de l&apos;événement</label>
+          <div className="flex items-center gap-3">
+            <input value={form.bannerImage} onChange={update("bannerImage")} className={`${inputClass} flex-1`} placeholder="https://… ou téléverser" />
+            <label className="shrink-0 cursor-pointer rounded-xl bg-slate-800 px-4 py-3 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700">
+              {uploading ? "…" : "Téléverser"}
+              <input type="file" accept="image/*" onChange={handleBannerUpload} className="hidden" />
+            </label>
+          </div>
+          {form.bannerImage && (
+            <div className="mt-3 overflow-hidden rounded-xl border border-slate-700">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={form.bannerImage} alt="Bannière" className="h-32 w-full object-cover" />
+            </div>
+          )}
+          <p className="mt-1 text-xs text-slate-500">Affichée en haut du formulaire de témoignage de cet événement.</p>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>Type de témoignage *</label>
+            <label className={labelClass}>Type de témoignage (formulaire) *</label>
             <select required value={form.typeId} onChange={update("typeId")} className={inputClass}>
               <option value="">— Choisir —</option>
               {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
@@ -1616,12 +1728,13 @@ function EvenementForm({
             Actif (visible publiquement)
           </label>
         </div>
+        {error && <p className="rounded-xl bg-red-500/20 px-4 py-3 text-sm font-medium text-red-300">{error}</p>}
         <div className="flex items-center gap-3 pt-2">
-          <button type="submit" className="rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-6 py-3 font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400">
-            {initial ? "Mettre à jour" : "Créer"}
+          <button type="submit" disabled={saving} className="rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-6 py-3 font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50">
+            {saving ? "Enregistrement…" : savedId ? "Mettre à jour" : "Créer"}
           </button>
-          <button type="button" onClick={onCancel} className="rounded-xl bg-slate-800/50 px-5 py-3 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
-            Annuler
+          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800/50 px-5 py-3 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
+            Retour à la liste
           </button>
         </div>
       </form>
@@ -1855,6 +1968,36 @@ function InvitationForm({ types, evenements, onSave, onCancel }: { types: TypeTe
   const update = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
+  // Quand un événement est sélectionné, on hérite de son client/type/marque.
+  const selectedEvent = form.evenementId ? evenements.find((e) => e.id === form.evenementId) : null;
+  const eventType = selectedEvent ? types.find((t) => t.id === selectedEvent.typeId) : null;
+
+  function selectEvent(id: string) {
+    const evt = id ? evenements.find((e) => e.id === id) : null;
+    setForm((f) => ({
+      ...f,
+      evenementId: id,
+      // Hérite automatiquement des infos de l'événement (client lié).
+      entreprise: evt?.entreprise ?? f.entreprise,
+      type: evt?.typeId ?? f.type,
+      marque: evt?.marque ?? f.marque,
+    }));
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    // Les valeurs dérivées de l'événement priment.
+    const payload = selectedEvent
+      ? {
+          ...form,
+          entreprise: selectedEvent.entreprise || form.entreprise,
+          type: selectedEvent.typeId,
+          marque: selectedEvent.marque,
+        }
+      : form;
+    onSave(payload);
+  }
+
   const inputClass = "w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-3 text-white outline-none transition-all placeholder:text-slate-500 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20";
 
   return (
@@ -1870,9 +2013,26 @@ function InvitationForm({ types, evenements, onSave, onCancel }: { types: TypeTe
       </div>
 
       <form
-        onSubmit={(e) => { e.preventDefault(); onSave(form); }}
+        onSubmit={handleSubmit}
         className="max-w-xl space-y-4 rounded-2xl border border-slate-700/50 bg-slate-800/50 p-6 backdrop-blur-sm md:p-8"
       >
+        {/* Événement en premier : il détermine le client, le formulaire et la marque */}
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-300">Événement lié</label>
+          <select value={form.evenementId} onChange={(e) => selectEvent(e.target.value)} className={inputClass}>
+            <option value="">— Aucun (invitation générale) —</option>
+            {evenements.filter((e) => e.actif).map((ev) => <option key={ev.id} value={ev.id}>{ev.nom}{ev.entreprise ? ` · ${ev.entreprise}` : ""}</option>)}
+          </select>
+          {selectedEvent && (
+            <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-slate-900/50 px-3 py-2 text-xs">
+              <span className="text-slate-400">Hérité de l&apos;événement :</span>
+              {selectedEvent.entreprise && <span className="rounded bg-slate-800 px-2 py-0.5 text-slate-300">{selectedEvent.entreprise}</span>}
+              {eventType && <span className="rounded px-2 py-0.5" style={{ backgroundColor: eventType.color + "33", color: eventType.color }}>{eventType.label}</span>}
+              <span className={`rounded px-2 py-0.5 ${selectedEvent.marque === "academie" ? "bg-purple-500/20 text-purple-400" : "bg-teal-500/20 text-teal-400"}`}>{selectedEvent.marque}</span>
+            </div>
+          )}
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-300">Nom du client</label>
@@ -1883,33 +2043,33 @@ function InvitationForm({ types, evenements, onSave, onCancel }: { types: TypeTe
             <input type="email" value={form.email} onChange={update("email")} className={inputClass} placeholder="marie@entreprise.com" />
           </div>
         </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-300">Entreprise</label>
-          <input value={form.entreprise} onChange={update("entreprise")} className={inputClass} placeholder="Acme Inc." />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-300">Type de témoignage</label>
-            <select value={form.type} onChange={update("type")} className={inputClass}>
-              <option value="">— Général —</option>
-              {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-300">Marque</label>
-            <select value={form.marque} onChange={update("marque")} className={inputClass}>
-              <option value="insuffle">Insuffle (Conseil)</option>
-              <option value="academie">Académie (Formations)</option>
-            </select>
-          </div>
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-300">Événement (optionnel)</label>
-          <select value={form.evenementId} onChange={update("evenementId")} className={inputClass}>
-            <option value="">— Aucun —</option>
-            {evenements.filter((e) => e.actif).map((ev) => <option key={ev.id} value={ev.id}>{ev.nom}</option>)}
-          </select>
-        </div>
+
+        {/* Champs masqués quand un événement est choisi (déjà déterminés par l'événement) */}
+        {!selectedEvent && (
+          <>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-300">Entreprise</label>
+              <input value={form.entreprise} onChange={update("entreprise")} className={inputClass} placeholder="Acme Inc." />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-300">Type de témoignage</label>
+                <select value={form.type} onChange={update("type")} className={inputClass}>
+                  <option value="">— Général —</option>
+                  {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-300">Marque</label>
+                <select value={form.marque} onChange={update("marque")} className={inputClass}>
+                  <option value="insuffle">Insuffle (Conseil)</option>
+                  <option value="academie">Académie (Formations)</option>
+                </select>
+              </div>
+            </div>
+          </>
+        )}
+
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-300">Message personnel (visible sur le formulaire)</label>
           <textarea value={form.message} onChange={update("message")} rows={3} className={`${inputClass} resize-none`} placeholder="Bonjour Marie, merci pour cette belle collaboration…" />
