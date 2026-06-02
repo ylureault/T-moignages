@@ -444,16 +444,7 @@ function TemoignagesView() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
-
-  function copyCitation(id: string, anon: boolean) {
-    const url = `${window.location.origin}/temoignages/${id}?mode=quote${anon ? "&anon=1" : ""}`;
-    const key = id + (anon ? "-a" : "");
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(key);
-      setTimeout(() => setCopied(null), 2000);
-    });
-  }
+  const [socialFor, setSocialFor] = useState<Temoignage | null>(null);
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -629,11 +620,8 @@ function TemoignagesView() {
                 <td className="px-2 py-3 sm:px-4 sm:py-4 text-sm text-slate-400">{t.date}</td>
                 <td className="px-2 py-3 sm:px-4 sm:py-4">
                   <div className="flex items-center gap-1">
-                    <button onClick={() => copyCitation(t.id, false)} className={`rounded-lg p-2 transition-colors ${copied === t.id ? "text-teal-400" : "text-slate-400 hover:bg-slate-700/50 hover:text-teal-400"}`} title="Copier le lien citation (page unique)">
-                      <Icon d={copied === t.id ? ICONS.check : ICONS.link} className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => copyCitation(t.id, true)} className={`rounded-lg p-2 transition-colors ${copied === t.id + "-a" ? "text-teal-400" : "text-slate-400 hover:bg-slate-700/50 hover:text-teal-400"}`} title="Copier le lien citation ANONYME (initiales)">
-                      <Icon d={copied === t.id + "-a" ? ICONS.check : ICONS.userAnon} className="w-4 h-4" />
+                    <button onClick={() => setSocialFor(t)} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700/50 hover:text-teal-400" title="Voir le témoignage complet & formats réseaux sociaux">
+                      <Icon d={ICONS.eye} className="w-4 h-4" />
                     </button>
                     <button onClick={() => togglePublie(t)} className={`rounded-lg p-2 transition-colors ${t.publie === false ? "text-slate-500 hover:bg-emerald-500/10 hover:text-emerald-400" : "text-emerald-400 hover:bg-slate-700/50 hover:text-slate-400"}`} title={t.publie === false ? "Publier" : "Masquer"}>
                       <Icon d={t.publie === false ? ICONS.eyeOff : ICONS.eye} className="w-4 h-4" />
@@ -675,6 +663,91 @@ function TemoignagesView() {
           </div>
         </Modal>
       )}
+
+      {socialFor && <SocialModal t={socialFor} onClose={() => setSocialFor(null)} />}
+    </div>
+  );
+}
+
+// ─── Modal "Voir complet" + formats réseaux sociaux ───────────
+function SocialModal({ t, onClose }: { t: Temoignage; onClose: () => void }) {
+  const [nameMode, setNameMode] = useState<"full" | "initial" | "first">("full");
+  const [format, setFormat] = useState<"square" | "story" | "landscape">("square");
+  const [copied, setCopied] = useState(false);
+
+  const prenom = t.auteur.trim().split(/\s+/)[0] || "";
+  const nomInit = (t.auteur.trim().split(/\s+/)[1] || "").charAt(0).toUpperCase();
+  const displayName = nameMode === "first" ? prenom : nameMode === "initial" ? (nomInit ? `${prenom} ${nomInit}.` : prenom) : t.auteur;
+
+  const url = `${typeof window !== "undefined" ? window.location.origin : ""}/temoignages/${t.id}?mode=quote&format=${format}&name=${nameMode}`;
+
+  function copy() {
+    navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  }
+
+  const nameOpts: { v: typeof nameMode; label: string }[] = [
+    { v: "full", label: "Nom complet" },
+    { v: "initial", label: "Prénom + initiale" },
+    { v: "first", label: "Prénom seul" },
+  ];
+  const fmtOpts: { v: typeof format; label: string; ratio: string }[] = [
+    { v: "square", label: "Carré (post)", ratio: "1:1" },
+    { v: "story", label: "Story", ratio: "9:16" },
+    { v: "landscape", label: "Paysage", ratio: "16:9" },
+  ];
+
+  const aspect = format === "square" ? "aspect-square" : format === "story" ? "aspect-[9/16] max-w-[220px] mx-auto" : "aspect-[16/9]";
+  const academie = t.marque === "academie";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-700/50 bg-slate-800 p-5 sm:p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Aperçu & partage réseaux sociaux</h3>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white"><Icon d={ICONS.close} className="w-5 h-5" /></button>
+        </div>
+
+        {/* Aperçu live */}
+        <div className="mb-5 rounded-xl bg-slate-950 p-4">
+          <div className={`relative mx-auto flex ${aspect} ${academie ? "theme-academie" : ""} flex-col items-center justify-center overflow-hidden rounded-2xl bg-navy px-5 py-6 text-center`}>
+            <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-accent/20 blur-2xl" />
+            <div className="relative">
+              <div className="mb-2 flex justify-center"><Stars note={t.note} /></div>
+              <p className={`font-display font-semibold leading-snug text-white ${format === "landscape" ? "text-sm sm:text-base line-clamp-4" : "text-sm line-clamp-6"}`}>
+                <span className="text-accent">&ldquo;</span>{t.contenu}<span className="text-accent">&rdquo;</span>
+              </p>
+              <p className="mt-3 text-xs font-bold text-white">{displayName}</p>
+              <p className="text-[10px] uppercase tracking-widest text-white/40">{academie ? "Insuffle Académie" : "Insuffle"}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Affichage du nom */}
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Affichage du nom</p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {nameOpts.map((o) => (
+            <button key={o.v} onClick={() => setNameMode(o.v)} className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${nameMode === o.v ? "bg-teal-500/20 text-teal-300 ring-1 ring-teal-500/40" : "bg-slate-900/50 text-slate-400 hover:text-white"}`}>{o.label}</button>
+          ))}
+        </div>
+
+        {/* Format */}
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Format</p>
+        <div className="mb-5 flex flex-wrap gap-2">
+          {fmtOpts.map((o) => (
+            <button key={o.v} onClick={() => setFormat(o.v)} className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${format === o.v ? "bg-teal-500/20 text-teal-300 ring-1 ring-teal-500/40" : "bg-slate-900/50 text-slate-400 hover:text-white"}`}>{o.label} <span className="text-xs opacity-60">{o.ratio}</span></button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400">
+            <Icon d={ICONS.eye} className="w-4 h-4" /> Ouvrir en plein écran (capture d&apos;écran)
+          </a>
+          <button onClick={copy} className="flex items-center gap-2 rounded-xl bg-slate-700 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-600">
+            <Icon d={copied ? ICONS.check : ICONS.copy} className="w-4 h-4" /> {copied ? "Lien copié !" : "Copier le lien"}
+          </button>
+        </div>
+        <p className="mt-3 text-xs text-slate-500">Ouvre la carte au format choisi, puis fais une capture d&apos;écran pour la publier. Le lien est aussi partageable tel quel.</p>
+      </div>
     </div>
   );
 }

@@ -38,10 +38,10 @@ export default async function TemoignagePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ anon?: string; mode?: string }>;
+  searchParams: Promise<{ anon?: string; mode?: string; name?: string; format?: string }>;
 }) {
   const { id } = await params;
-  const { anon, mode } = await searchParams;
+  const { anon, mode, name, format } = await searchParams;
   const temoignages = await getTemoignages();
   const t = temoignages.find((x) => x.id === id);
 
@@ -55,10 +55,17 @@ export default async function TemoignagePage({
   const typeInfo = types.find((tp) => tp.id === t.type);
   const eventInfo = t.evenementId ? evenements.find((e) => e.id === t.evenementId) : null;
 
-  const isAnon = anon === "1";
-  const displayName = isAnon ? anonymise(t.auteur) : t.auteur;
+  // Mode d'affichage du nom : "full" (complet), "initial" (Prénom N.),
+  // "first" (prénom seul). Rétrocompat : ?anon=1 → initial.
+  const nameMode = name === "first" ? "first" : name === "initial" || anon === "1" ? "initial" : "full";
+  const prenom = t.auteur.trim().split(/\s+/)[0] || "";
+  const isAnon = nameMode !== "full";
+  const displayName =
+    nameMode === "first" ? prenom :
+    nameMode === "initial" ? anonymise(t.auteur) :
+    t.auteur;
   const displayInitials = isAnon
-    ? (t.auteur.trim().charAt(0) || "?").toUpperCase()
+    ? (prenom.charAt(0) || "?").toUpperCase()
     : initials(t.auteur);
 
   // Thème selon la marque : Académie = univers violet/or + police Outfit.
@@ -66,20 +73,29 @@ export default async function TemoignagePage({
   const themeClass = isAcademie ? "theme-academie" : "";
   const marqueLabel = isAcademie ? "Insuffle Académie" : "Insuffle · Clarté Vivante";
 
-  // ── Mode citation pleine page (partageable) ──────────────────
+  // ── Mode citation pleine page / réseaux sociaux ──────────────
   if (mode === "quote") {
-    return (
-      <div className={`${themeClass} relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-navy px-6 py-16 text-center`}>
-        <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />
-        <div className="absolute -bottom-40 -left-20 h-96 w-96 rounded-full bg-accent/10 blur-3xl" />
-        <div className="relative mx-auto max-w-3xl">
-          <div className="mb-6 flex justify-center"><Stars note={t.note} size={26} /></div>
-          <blockquote className="font-display text-2xl font-semibold leading-snug text-white sm:text-4xl md:text-5xl md:leading-[1.2]">
+    // Formats prêts pour les réseaux : carré (post), story (9:16), paysage (16:9).
+    const fmt = format === "story" ? "story" : format === "landscape" ? "landscape" : format === "square" ? "square" : "full";
+    const cardSize =
+      fmt === "square" ? "aspect-square w-full max-w-[600px]" :
+      fmt === "story" ? "aspect-[9/16] w-full max-w-[420px]" :
+      fmt === "landscape" ? "aspect-[16/9] w-full max-w-[900px]" :
+      "w-full max-w-3xl";
+    const isCard = fmt !== "full";
+
+    const card = (
+      <div className={`relative flex ${isCard ? `${cardSize} flex-col items-center justify-center overflow-hidden rounded-3xl px-8 py-10 shadow-2xl` : "mx-auto max-w-3xl"} bg-navy text-center`}>
+        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-accent/20 blur-3xl" />
+        <div className="absolute -bottom-24 -left-16 h-64 w-64 rounded-full bg-accent/10 blur-3xl" />
+        <div className="relative">
+          <div className="mb-5 flex justify-center"><Stars note={t.note} size={fmt === "story" ? 24 : 26} /></div>
+          <blockquote className={`font-display font-semibold leading-snug text-white ${fmt === "square" ? "text-xl sm:text-2xl" : fmt === "story" ? "text-xl sm:text-2xl" : fmt === "landscape" ? "text-xl sm:text-3xl" : "text-2xl sm:text-4xl md:text-5xl md:leading-[1.2]"}`}>
             <span className="text-accent">&ldquo;</span>
             {t.contenu}
             <span className="text-accent">&rdquo;</span>
           </blockquote>
-          <div className="mt-10 flex items-center justify-center gap-3">
+          <div className="mt-8 flex items-center justify-center gap-3">
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 font-display text-base font-semibold text-white">
               {displayInitials}
             </span>
@@ -92,10 +108,16 @@ export default async function TemoignagePage({
               </p>
             </div>
           </div>
-          <div className="mt-12">
+          <div className="mt-8">
             <p className="text-xs uppercase tracking-widest text-white/40">{marqueLabel}</p>
           </div>
         </div>
+      </div>
+    );
+
+    return (
+      <div className={`${themeClass} flex min-h-screen flex-col items-center justify-center overflow-hidden ${isCard ? "bg-slate-950 p-6" : "bg-navy px-6 py-16"}`}>
+        {card}
       </div>
     );
   }
