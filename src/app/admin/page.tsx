@@ -2473,6 +2473,36 @@ function ApiView() {
         {flux.map((f) => <LinkRow key={f.path} {...f} />)}
       </div>
 
+      {/* Widget embarquable : afficher les témoignages sur insuffle.com etc. */}
+      <div className="mb-8 rounded-2xl border border-teal-500/20 bg-slate-800/50 p-6 backdrop-blur-sm">
+        <h2 className="mb-2 text-sm font-semibold text-white">Widget à intégrer sur vos sites</h2>
+        <p className="mb-4 text-sm text-slate-400">
+          Une seule balise à coller dans n&apos;importe quelle page (insuffle.com, insuffle-academie.com, Webflow, WordPress…) :
+          les témoignages publiés s&apos;affichent en cartes avec étoiles, sans conflit avec le style du site (Shadow DOM).
+        </p>
+        <div className="space-y-3">
+          {[
+            { label: "Témoignages Insuffle (grille)", code: `<script src="${origin}/widget.js" defer data-marque="insuffle" data-limit="6"></script>` },
+            { label: "Témoignages Académie (grille)", code: `<script src="${origin}/widget.js" defer data-marque="academie" data-limit="6"></script>` },
+            { label: "Liste verticale, fond sombre, anonymisé", code: `<script src="${origin}/widget.js" defer data-layout="list" data-theme="dark" data-anonyme="1" data-limit="4"></script>` },
+          ].map((s) => (
+            <div key={s.label} className="rounded-xl border border-slate-700/50 bg-slate-900/40 px-4 py-3">
+              <div className="mb-1.5 flex items-center justify-between gap-3">
+                <p className="text-xs font-medium text-slate-300">{s.label}</p>
+                <button onClick={() => copy(s.code)} className="flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">
+                  <Icon d={ICONS.copy} className="w-3.5 h-3.5" />
+                  {copied === s.code ? "Copié !" : "Copier"}
+                </button>
+              </div>
+              <code className="block overflow-x-auto whitespace-nowrap text-xs text-teal-400">{s.code}</code>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-slate-500">
+          Options : <code className="text-teal-400">data-note=&quot;4&quot;</code> (note min), <code className="text-teal-400">data-event=&quot;id&quot;</code>, <code className="text-teal-400">data-type=&quot;id&quot;</code>, <code className="text-teal-400">data-target=&quot;#avis&quot;</code> (emplacement précis)
+        </p>
+      </div>
+
       {evenements.length > 0 && (
         <div className="mb-8">
           <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-500">Par événement</h2>

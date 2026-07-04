@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import type { Metadata } from "next";
 import { getTemoignages, getTypes, getEvenements } from "@/lib/db";
 import { verifySessionToken } from "@/lib/auth";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -31,6 +32,66 @@ function anonymise(nom: string) {
   const prenom = parts[0] || "";
   const nomFamille = parts[1] || "";
   return nomFamille ? `${prenom} ${nomFamille.charAt(0).toUpperCase()}.` : prenom;
+}
+
+/**
+ * Métadonnées de partage (Open Graph / Twitter) : quand un lien de citation
+ * est collé sur LinkedIn, WhatsApp, Slack…, la preview affiche l'auteur, la
+ * note et un extrait — au lieu d'un lien nu. Seuls les témoignages publiés
+ * exposent leur contenu ; le mode d'affichage du nom (?name=…) est respecté.
+ */
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ anon?: string; name?: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const { anon, name } = await searchParams;
+  const temoignages = await getTemoignages();
+  const t = temoignages.find((x) => x.id === id);
+  if (!t || t.publie === false) {
+    return { title: "Témoignage — Insuffle", robots: { index: false } };
+  }
+
+  const nameMode = name === "first" ? "first" : name === "initial" || anon === "1" ? "initial" : "full";
+  const prenom = t.auteur.trim().split(/\s+/)[0] || "";
+  const displayName =
+    nameMode === "first" ? prenom :
+    nameMode === "initial" ? anonymise(t.auteur) :
+    t.auteur;
+  const marqueLabel = t.marque === "academie" ? "Insuffle Académie" : "Insuffle";
+  const stars = "★".repeat(Math.max(1, Math.min(5, Math.round(t.note))));
+  const title = `${displayName} ${stars} — Témoignage ${marqueLabel}`;
+  const description = t.contenu.length > 160 ? `${t.contenu.slice(0, 157).trimEnd()}…` : t.contenu;
+
+  // Base absolue déduite de la requête (obligatoire pour les images OG).
+  const h = await headers();
+  const host = h.get("host") || "temoignages.insuffle.com";
+  const proto = h.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
+
+  return {
+    title,
+    description,
+    metadataBase: new URL(`${proto}://${host}`),
+    alternates: { canonical: `/temoignages/${t.id}` },
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      siteName: marqueLabel,
+      url: `/temoignages/${t.id}`,
+      locale: "fr_FR",
+      ...(t.heroImage ? { images: [{ url: t.heroImage }] } : {}),
+    },
+    twitter: {
+      card: t.heroImage ? "summary_large_image" : "summary",
+      title,
+      description,
+      ...(t.heroImage ? { images: [t.heroImage] } : {}),
+    },
+  };
 }
 
 export default async function TemoignagePage({
@@ -122,8 +183,30 @@ export default async function TemoignagePage({
     );
   }
 
+  // Balisage Schema.org (Review) : permet les extraits enrichis avec étoiles
+  // dans les résultats de recherche. Publiés uniquement (jamais en préview admin).
+  const jsonLd = t.publie !== false ? {
+    "@context": "https://schema.org",
+    "@type": "Review",
+    reviewRating: { "@type": "Rating", ratingValue: t.note, bestRating: 5 },
+    author: { "@type": "Person", name: displayName },
+    reviewBody: t.contenu,
+    datePublished: t.date,
+    itemReviewed: {
+      "@type": "Organization",
+      name: marqueLabel,
+      url: isAcademie ? "https://insuffle-academie.com" : "https://insuffle.com",
+    },
+  } : null;
+
   return (
     <div className={`${themeClass} flex min-h-screen flex-col`}>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
       <SiteHeader />
 
       {/* Hero banner : photo en fond qui se fond en dégradé vers le bas */}

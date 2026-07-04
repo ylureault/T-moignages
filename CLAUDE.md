@@ -239,6 +239,20 @@ Le thème est appliqué automatiquement selon le champ `marque` de l'événement
 - `GET /api/public/temoignages` — feed JSON (CORS *), filtres : marque, type, event, note, limit, anonyme
 - `POST /api/temoignages/soumettre` — soumission sans auth (sauvé comme non-publié)
 
+## Widget embarquable & partage
+
+- **`/widget.js`** — une balise script à coller sur n'importe quel site
+  (insuffle.com, Webflow, WordPress…) : cartes avec étoiles, Shadow DOM
+  (aucun conflit CSS), options par attributs `data-*` (marque, limit, note,
+  event, type, anonyme, layout grid/list, theme light/dark, target).
+  Snippets copiables dans l'admin (vue API & Flux).
+- **Open Graph / Twitter Cards** sur `/temoignages/[id]` : les liens partagés
+  (LinkedIn, WhatsApp…) affichent auteur + note + extrait. Respecte
+  `?name=initial|first`. Témoignages non publiés : métadonnées génériques
+  + noindex.
+- **JSON-LD Schema.org (Review)** sur les pages citation publiées : éligible
+  aux extraits enrichis (étoiles) dans Google.
+
 ## Import & restauration (admin, jamais destructifs)
 
 - `POST /api/temoignages/importer` — import de témoignages externes (tableau JSON ou

@@ -26,6 +26,19 @@ npm run dev                 # http://localhost:3000
 - `GET /api/public/temoignages` — feed JSON (CORS `*`), filtres : `marque`, `type`, `event`, `note`, `limit`, `anonyme`
 - `POST /api/temoignages/soumettre` — soumission publique (sauvé comme non-publié, en attente de modération)
 
+## Widget embarquable
+
+```html
+<script src="https://temoignages.insuffle.com/widget.js" defer
+        data-marque="insuffle" data-limit="6"></script>
+```
+
+Cartes avec étoiles, isolées en Shadow DOM. Options : `data-note`, `data-event`,
+`data-type`, `data-anonyme="1"`, `data-layout="list"`, `data-theme="dark"`,
+`data-target="#avis"`. Snippets prêts à copier dans l'admin (API & Flux).
+Les pages citation embarquent Open Graph + JSON-LD (Review) pour les partages
+et le SEO.
+
 ## API admin (cookie session requis)
 
 - `GET/POST /api/temoignages` — liste / créer
