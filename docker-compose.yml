@@ -1,0 +1,17 @@
+# Déploiement Docker en une commande :
+#   1. cp .env.example .env   (remplir au minimum ADMIN_PASSWORD)
+#   2. docker compose up -d --build
+#   3. curl http://localhost:3000/api/health
+#
+# Les volumes ./data et ./public/uploads persistent les données et les images
+# hors du conteneur : une mise à jour (rebuild) ne touche JAMAIS aux données.
+services:
+  temoignages:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+      - ./public/uploads:/app/public/uploads
+    restart: unless-stopped

@@ -7,6 +7,10 @@ next-env.d.ts
 # Données live — JAMAIS dans le repo (survit aux déploiements)
 /data/
 
+# Images uploadées (banners) — données utilisateur, hors repo
+/public/uploads/*
+!/public/uploads/.gitkeep
+
 # Secrets - JAMAIS dans le repo
 .env
 .env.local

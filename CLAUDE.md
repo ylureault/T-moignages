@@ -95,6 +95,12 @@ npm start            # Serveur production (port 3000 par défaut)
 
 ## Déploiement
 
+> **Brief de mission complet : voir [DEPLOIEMENT.md](./DEPLOIEMENT.md)** —
+> document autonome à donner à Claude (Cowork ou Code) pour exécuter le
+> déploiement : options pas à pas, config backup GitHub, checklist de
+> vérification, procédure de MAJ (`scripts/update.sh`), rollback, dépannage.
+> Healthcheck : `GET /api/health` (public, sans secret).
+
 ### Option A : VPS / serveur dédié (recommandé pour persistance données)
 
 1. Cloner le repo, `npm install`, `npm run build`
