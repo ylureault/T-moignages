@@ -233,6 +233,20 @@ Le thème est appliqué automatiquement selon le champ `marque` de l'événement
 - `GET /api/public/temoignages` — feed JSON (CORS *), filtres : marque, type, event, note, limit, anonyme
 - `POST /api/temoignages/soumettre` — soumission sans auth (sauvé comme non-publié)
 
+## Import & restauration (admin, jamais destructifs)
+
+- `POST /api/temoignages/importer` — import de témoignages externes (tableau JSON ou
+  `{temoignages: [...]}`). Id généré si absent, doublons ignorés (par id ET par
+  empreinte auteur+contenu), imports non publiés par défaut. Jamais d'écrasement.
+- `POST /api/backup` — restauration. **Mode `fusion` par défaut** : ajoute uniquement
+  les entrées inconnues, ne touche jamais à l'existant. `?mode=remplacer` pour un
+  remplacement intégral (confirmation UI demandée).
+- `GET /api/backup/status` — état du filet de sécurité : snapshots locaux, dernier
+  backup, GitHub actif ou non, compteurs.
+- L'admin a une vue **API & Flux** avec tous les liens de lecture prêts à copier,
+  et un bouton **Lien unique** sur chaque événement (crée une invitation héritée et
+  copie l'URL en 1 clic).
+
 ## Conventions de code
 
 - Tout le code et les commentaires sont en **français**

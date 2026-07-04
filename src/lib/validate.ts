@@ -1,4 +1,4 @@
-import type { Temoignage, TypeTemoignage } from "@/types";
+import type { Temoignage, TypeTemoignage, Evenement, Invitation } from "@/types";
 
 const VALID_SOURCES = ["google", "trustpilot", "linkedin", "site", "autre"];
 const VALID_MARQUES = ["insuffle", "academie"];
@@ -101,11 +101,72 @@ export function validateType(raw: unknown): Result<TypeTemoignage> {
   return { ok: true, value };
 }
 
-/** Valide une charge de restauration complète avant d'écraser les données. */
-export function validateBackup(raw: unknown): Result<{
+/** Valide un événement (restauration/fusion). Tolérant : normalise les champs. */
+export function validateEvenement(raw: unknown): Result<Evenement> {
+  if (typeof raw !== "object" || raw === null) {
+    return { ok: false, error: "Événement invalide (objet attendu)" };
+  }
+  const o = raw as Record<string, unknown>;
+  if (!isString(o.id) || o.id.length === 0 || o.id.length > 64) {
+    return { ok: false, error: "id d'événement invalide" };
+  }
+  if (!isString(o.nom) || o.nom.length === 0 || o.nom.length > 200) {
+    return { ok: false, error: "nom d'événement invalide" };
+  }
+  const value: Evenement = {
+    id: o.id,
+    nom: o.nom,
+    description: isString(o.description) ? o.description.slice(0, 2000) : "",
+    typeId: isString(o.typeId) ? o.typeId : "",
+    ...(isString(o.entreprise) && o.entreprise ? { entreprise: o.entreprise.slice(0, 200) } : {}),
+    ...(isString(o.bannerImage) && o.bannerImage.length <= 512 ? { bannerImage: o.bannerImage } : {}),
+    date: isString(o.date) ? o.date : new Date().toISOString().split("T")[0],
+    ...(isString(o.lieu) && o.lieu ? { lieu: o.lieu.slice(0, 200) } : {}),
+    marque: (isString(o.marque) && VALID_MARQUES.includes(o.marque) ? o.marque : "insuffle") as Evenement["marque"],
+    createdAt: isString(o.createdAt) ? o.createdAt : new Date().toISOString(),
+    actif: typeof o.actif === "boolean" ? o.actif : true,
+  };
+  return { ok: true, value };
+}
+
+/** Valide une invitation (restauration/fusion). */
+export function validateInvitation(raw: unknown): Result<Invitation> {
+  if (typeof raw !== "object" || raw === null) {
+    return { ok: false, error: "Invitation invalide (objet attendu)" };
+  }
+  const o = raw as Record<string, unknown>;
+  if (!isString(o.id) || o.id.length === 0 || o.id.length > 64) {
+    return { ok: false, error: "id d'invitation invalide" };
+  }
+  const value: Invitation = {
+    id: o.id,
+    nom: isString(o.nom) ? o.nom.slice(0, 200) : "",
+    email: isString(o.email) ? o.email.slice(0, 254) : "",
+    entreprise: isString(o.entreprise) ? o.entreprise.slice(0, 200) : "",
+    type: isString(o.type) ? o.type.slice(0, 64) : "",
+    ...(isString(o.evenementId) && o.evenementId ? { evenementId: o.evenementId } : {}),
+    marque: (isString(o.marque) && VALID_MARQUES.includes(o.marque) ? o.marque : "insuffle") as Invitation["marque"],
+    message: isString(o.message) ? o.message.slice(0, 1000) : "",
+    createdAt: isString(o.createdAt) ? o.createdAt : new Date().toISOString(),
+    used: typeof o.used === "boolean" ? o.used : false,
+    ...(isString(o.usedAt) ? { usedAt: o.usedAt } : {}),
+  };
+  return { ok: true, value };
+}
+
+export type ValidatedBackup = {
   temoignages: Temoignage[];
   types: TypeTemoignage[];
-}> {
+  evenements: Evenement[];
+  invitations: Invitation[];
+};
+
+/**
+ * Valide une charge de restauration complète AVANT toute écriture.
+ * Les 4 collections sont validées — un backup ne doit jamais perdre
+ * les événements ni les invitations au passage.
+ */
+export function validateBackup(raw: unknown): Result<ValidatedBackup> {
   if (typeof raw !== "object" || raw === null) {
     return { ok: false, error: "Backup invalide" };
   }
@@ -116,8 +177,12 @@ export function validateBackup(raw: unknown): Result<{
   if (!Array.isArray(o.types)) {
     return { ok: false, error: "'types' (array) requis" };
   }
+  const evenementsRaw = Array.isArray(o.evenements) ? o.evenements : [];
+  const invitationsRaw = Array.isArray(o.invitations) ? o.invitations : [];
+
   // Garde-fous de volume.
-  if (o.temoignages.length > 100000 || o.types.length > 1000) {
+  if (o.temoignages.length > 100000 || o.types.length > 1000 ||
+      evenementsRaw.length > 10000 || invitationsRaw.length > 100000) {
     return { ok: false, error: "Volume de données trop important" };
   }
 
@@ -135,5 +200,19 @@ export function validateBackup(raw: unknown): Result<{
     types.push(r.value);
   }
 
-  return { ok: true, value: { temoignages, types } };
+  const evenements: Evenement[] = [];
+  for (let i = 0; i < evenementsRaw.length; i++) {
+    const r = validateEvenement(evenementsRaw[i]);
+    if (!r.ok) return { ok: false, error: `evenements[${i}]: ${r.error}` };
+    evenements.push(r.value);
+  }
+
+  const invitations: Invitation[] = [];
+  for (let i = 0; i < invitationsRaw.length; i++) {
+    const r = validateInvitation(invitationsRaw[i]);
+    if (!r.ok) return { ok: false, error: `invitations[${i}]: ${r.error}` };
+    invitations.push(r.value);
+  }
+
+  return { ok: true, value: { temoignages, types, evenements, invitations } };
 }

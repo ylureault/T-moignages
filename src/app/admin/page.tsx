@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Temoignage, TypeTemoignage, Invitation, Evenement, ChampPersonnalise, NoteStyle } from "@/types";
 
-type View = "dashboard" | "temoignages" | "types" | "evenements" | "invitations" | "backup";
+type View = "dashboard" | "temoignages" | "types" | "evenements" | "invitations" | "api" | "backup";
 
 const SOURCES = ["google", "trustpilot", "linkedin", "site", "autre"] as const;
 const MARQUES = ["insuffle", "academie"] as const;
@@ -81,6 +81,7 @@ const ICONS = {
   eye: "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z",
   eyeOff: "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M3 3l18 18",
   userAnon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+  code: "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4",
 };
 
 export default function AdminPage() {
@@ -203,6 +204,7 @@ function AdminShell({ onLogout }: { onLogout: () => void }) {
     { id: "types", label: "Types", icon: ICONS.inbox },
     { id: "evenements", label: "Événements", icon: ICONS.calendar },
     { id: "invitations", label: "Invitations", icon: ICONS.link },
+    { id: "api", label: "API & Flux", icon: ICONS.code },
     { id: "backup", label: "Sauvegarde", icon: ICONS.server },
   ];
 
@@ -315,6 +317,7 @@ function AdminShell({ onLogout }: { onLogout: () => void }) {
         {view === "types" && <TypesView />}
         {view === "evenements" && <EvenementsView />}
         {view === "invitations" && <InvitationsView />}
+        {view === "api" && <ApiView />}
         {view === "backup" && <BackupView />}
       </main>
     </div>
@@ -445,6 +448,7 @@ function TemoignagesView() {
   const [error, setError] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [socialFor, setSocialFor] = useState<Temoignage | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -535,13 +539,22 @@ function TemoignagesView() {
           <h1 className="text-xl font-bold sm:text-3xl">Témoignages</h1>
           <p className="mt-1 text-sm text-slate-400">{temoignages.length} témoignage{temoignages.length > 1 ? "s" : ""}</p>
         </div>
-        <button
-          onClick={() => setCreating(true)}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-5 py-2.5 font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400"
-        >
-          <Icon d={ICONS.plus} className="w-4 h-4" />
-          Nouveau
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setImporting(true)}
+            className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/70 px-5 py-2.5 font-semibold text-slate-300 transition-all hover:border-teal-500/40 hover:text-teal-400"
+          >
+            <Icon d={ICONS.upload} className="w-4 h-4" />
+            Importer
+          </button>
+          <button
+            onClick={() => setCreating(true)}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-5 py-2.5 font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400"
+          >
+            <Icon d={ICONS.plus} className="w-4 h-4" />
+            Nouveau
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -665,6 +678,131 @@ function TemoignagesView() {
       )}
 
       {socialFor && <SocialModal t={socialFor} onClose={() => setSocialFor(null)} />}
+      {importing && <ImportModal onClose={() => { setImporting(false); loadData(); }} />}
+    </div>
+  );
+}
+
+// ─── Modal d'import de témoignages externes (JSON / CSV) ──────
+function ImportModal({ onClose }: { onClose: () => void }) {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  /** CSV → tableau d'objets. Colonnes reconnues : auteur, entreprise, poste,
+   *  note, contenu, date, source, marque, type. Séparateur , ou ; détecté. */
+  function parseCsv(raw: string): Record<string, unknown>[] {
+    const lines = raw.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length < 2) return [];
+    const sep = (lines[0].match(/;/g)?.length || 0) > (lines[0].match(/,/g)?.length || 0) ? ";" : ",";
+    const splitLine = (line: string): string[] => {
+      const cells: string[] = [];
+      let cur = "", inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') {
+          if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+          else inQuotes = !inQuotes;
+        } else if (c === sep && !inQuotes) { cells.push(cur); cur = ""; }
+        else cur += c;
+      }
+      cells.push(cur);
+      return cells.map((s) => s.trim());
+    };
+    const headers = splitLine(lines[0]).map((h) => h.toLowerCase());
+    return lines.slice(1).map((line) => {
+      const cells = splitLine(line);
+      const obj: Record<string, unknown> = {};
+      headers.forEach((h, i) => { if (cells[i] !== undefined && cells[i] !== "") obj[h] = cells[i]; });
+      if (typeof obj.note === "string") obj.note = parseFloat(obj.note as string);
+      return obj;
+    });
+  }
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setText(await file.text());
+  }
+
+  async function handleImport() {
+    setBusy(true);
+    setResult(null);
+    try {
+      const trimmed = text.trim();
+      let payload: unknown;
+      if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+        payload = JSON.parse(trimmed);
+      } else {
+        const rows = parseCsv(trimmed);
+        if (rows.length === 0) {
+          setResult({ ok: false, message: "CSV vide ou illisible (1re ligne = en-têtes : auteur, contenu, note, …)" });
+          setBusy(false);
+          return;
+        }
+        payload = rows;
+      }
+      const res = await apiFetch("/api/temoignages/importer", { method: "POST", body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (!res.ok) {
+        setResult({ ok: false, message: data.error || "Erreur lors de l'import" });
+      } else {
+        setResult({ ok: true, message: data.message });
+        if (data.erreurs?.length > 0) {
+          setResult({ ok: true, message: `${data.message} — 1re erreur : ligne ${data.erreurs[0].index + 1} (${data.erreurs[0].erreur})` });
+        }
+      }
+    } catch {
+      setResult({ ok: false, message: "Contenu illisible : JSON ou CSV attendu" });
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-700/50 bg-slate-800 p-5 sm:p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Importer des témoignages</h3>
+          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-700 hover:text-white">
+            <Icon d={ICONS.close} className="w-5 h-5" />
+          </button>
+        </div>
+
+        <p className="mb-4 text-sm text-slate-400">
+          Fichier ou collage <strong>JSON</strong> (tableau ou export backup) ou <strong>CSV</strong> (en-têtes : <code className="text-teal-400">auteur, contenu, note</code> + optionnels <code className="text-teal-400">entreprise, poste, date, source, marque, type</code>).
+          Fusion sans risque : les témoignages déjà présents ne sont jamais écrasés, rien n&apos;est supprimé. Les imports arrivent <strong>non publiés</strong> pour relecture.
+        </p>
+
+        <input ref={fileRef} type="file" accept=".json,.csv,.txt" onChange={handleFile} className="mb-3 text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-slate-300 hover:file:bg-slate-700" />
+
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={8}
+          className="mb-4 w-full rounded-xl border border-slate-700 bg-slate-900/50 p-3 font-mono text-xs text-white outline-none placeholder:text-slate-600 focus:border-teal-500"
+          placeholder={'[\n  { "auteur": "Marie Dupont", "entreprise": "Acme", "note": 5, "contenu": "Excellent accompagnement…" }\n]\n\nou CSV :\nauteur;entreprise;note;contenu\nMarie Dupont;Acme;5;Excellent accompagnement'}
+        />
+
+        {result && (
+          <div className={`mb-4 rounded-xl px-4 py-3 text-sm font-medium ${result.ok ? "bg-emerald-500/20 text-emerald-300" : "bg-red-500/20 text-red-300"}`}>
+            {result.message}
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700">
+            {result?.ok ? "Fermer" : "Annuler"}
+          </button>
+          <button
+            onClick={handleImport}
+            disabled={busy || !text.trim()}
+            className="rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400 disabled:opacity-50"
+          >
+            {busy ? "Import en cours…" : "Importer"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1519,6 +1657,7 @@ function EvenementsView() {
   const [editing, setEditing] = useState<Evenement | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [quickLinkBusy, setQuickLinkBusy] = useState<string | null>(null);
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -1551,6 +1690,38 @@ function EvenementsView() {
       `Bonjour,\n\n${evt.description || "Nous aimerions recueillir votre témoignage sur cet événement."}\n\nCliquez ici pour partager votre avis :\n${url}\n\nMerci !\nL'équipe ${evt.marque === "academie" ? "Académie" : "Insuffle"}`
     );
     window.open(`mailto:?subject=${subject}&body=${body}`);
+  }
+
+  /**
+   * Lien unique en 1 clic : crée une invitation héritant de l'événement
+   * (client, type, marque) et copie immédiatement l'URL personnelle dans le
+   * presse-papier. Chaque lien est à usage unique — parfait pour l'envoyer
+   * rapidement à un client précis.
+   */
+  async function quickUniqueLink(evt: Evenement) {
+    setQuickLinkBusy(evt.id);
+    try {
+      const res = await apiFetch("/api/invitations", {
+        method: "POST",
+        body: JSON.stringify({
+          nom: "",
+          email: "",
+          entreprise: evt.entreprise || "",
+          type: evt.typeId,
+          marque: evt.marque,
+          evenementId: evt.id,
+          message: "",
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.data?.id) {
+        const url = `${window.location.origin}/temoignages/nouveau?token=${data.data.id}`;
+        await navigator.clipboard.writeText(url).catch(() => {});
+        window.dispatchEvent(new CustomEvent("admin-toast", { detail: "Lien unique créé et copié — prêt à envoyer" }));
+      }
+    } finally {
+      setQuickLinkBusy(null);
+    }
   }
 
   async function handleDelete(id: string) {
@@ -1671,6 +1842,15 @@ function EvenementsView() {
 
                 {/* Actions */}
                 <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => quickUniqueLink(evt)}
+                    disabled={quickLinkBusy === evt.id}
+                    className="flex items-center gap-1 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 px-3 py-1.5 text-xs font-semibold text-white shadow shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400 disabled:opacity-50"
+                    title="Crée un lien personnel à usage unique et le copie — prêt à envoyer à un client"
+                  >
+                    <Icon d={ICONS.link} className="w-3 h-3" />
+                    {quickLinkBusy === evt.id ? "Création…" : "Lien unique"}
+                  </button>
                   <button onClick={() => setEditing(evt)} className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-slate-400 transition-colors hover:text-white">
                     Modifier
                   </button>
@@ -2232,10 +2412,120 @@ function InvitationForm({ types, evenements, onSave, onCancel }: { types: TypeTe
 }
 
 // ─── Backup/Restore ───────────────────────────────────────────
+// ─── API & Flux : liens de lecture prêts à copier ─────────────
+function ApiView() {
+  const [evenements, setEvenements] = useState<Evenement[]>([]);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [origin, setOrigin] = useState("");
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+    apiFetch("/api/evenements").then((r) => r.json()).then((d) => setEvenements(d.data || [])).catch(() => {});
+  }, []);
+
+  function copy(url: string) {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(url);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  }
+
+  const flux: { label: string; description: string; path: string }[] = [
+    { label: "Tous les témoignages publiés", description: "Le flux complet, prêt à intégrer sur n'importe quel site (CORS ouvert)", path: "/api/public/temoignages" },
+    { label: "Témoignages Insuffle", description: "Uniquement la marque Insuffle (conseil)", path: "/api/public/temoignages?marque=insuffle" },
+    { label: "Témoignages Académie", description: "Uniquement Insuffle Académie (formations)", path: "/api/public/temoignages?marque=academie" },
+    { label: "Meilleures notes (4★ et +)", description: "Sélection des témoignages les mieux notés", path: "/api/public/temoignages?note=4" },
+    { label: "Version anonymisée", description: "Auteurs raccourcis (« Marie D. »), sans entreprise ni avatar", path: "/api/public/temoignages?anonyme=1" },
+  ];
+
+  function LinkRow({ label, description, path }: { label: string; description: string; path: string }) {
+    const url = `${origin}${path}`;
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-700/50 bg-slate-900/40 px-4 py-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-white">{label}</p>
+          <p className="text-xs text-slate-500">{description}</p>
+          <code className="mt-1 block truncate text-xs text-teal-400">{path}</code>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button onClick={() => copy(url)} className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">
+            <Icon d={ICONS.copy} className="w-3.5 h-3.5" />
+            {copied === url ? "Copié !" : "Copier"}
+          </button>
+          <a href={url} target="_blank" rel="noreferrer" className="rounded-lg bg-teal-500/20 px-3 py-2 text-xs font-medium text-teal-400 transition-colors hover:bg-teal-500/30">
+            Ouvrir
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="text-xl font-bold sm:text-3xl">API &amp; Flux</h1>
+        <p className="mt-1 text-sm text-slate-400">
+          Liens de lecture publics (JSON, CORS ouvert) — seuls les témoignages <strong>publiés</strong> y apparaissent, champs privés exclus
+        </p>
+      </div>
+
+      <div className="mb-8 space-y-3">
+        {flux.map((f) => <LinkRow key={f.path} {...f} />)}
+      </div>
+
+      {evenements.length > 0 && (
+        <div className="mb-8">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-500">Par événement</h2>
+          <div className="space-y-3">
+            {evenements.map((evt) => (
+              <LinkRow
+                key={evt.id}
+                label={evt.nom}
+                description={evt.entreprise ? `Client : ${evt.entreprise}` : "Témoignages de cet événement uniquement"}
+                path={`/api/public/temoignages?event=${evt.id}`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-6 backdrop-blur-sm">
+        <h2 className="mb-3 text-sm font-semibold text-white">Filtres combinables</h2>
+        <ul className="space-y-1.5 text-sm text-slate-400">
+          <li><code className="text-teal-400">?marque=insuffle|academie</code> — filtrer par marque</li>
+          <li><code className="text-teal-400">?type=&lt;typeId&gt;</code> — filtrer par typologie de formulaire</li>
+          <li><code className="text-teal-400">?event=&lt;evenementId&gt;</code> — filtrer par événement</li>
+          <li><code className="text-teal-400">?note=4</code> — note minimale</li>
+          <li><code className="text-teal-400">?limit=10</code> — limiter le nombre de résultats</li>
+          <li><code className="text-teal-400">?anonyme=1</code> — anonymiser les auteurs</li>
+        </ul>
+        <p className="mt-4 text-xs text-slate-500">
+          Exemple : <code className="text-teal-400">/api/public/temoignages?marque=academie&amp;note=4&amp;limit=6&amp;anonyme=1</code>
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function BackupView() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [mode, setMode] = useState<"fusion" | "remplacer">("fusion");
+  const [info, setInfo] = useState<{
+    snapshotsLocaux: number;
+    dernierSnapshot: string | null;
+    backupGitHubActif: boolean;
+    compteurs: { temoignages: number; types: number; evenements: number; invitations: number };
+  } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const loadStatus = useCallback(() => {
+    apiFetch("/api/backup/status").then((r) => r.json()).then((d) => {
+      if (d.success) setInfo(d.data);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => { loadStatus(); }, [loadStatus]);
 
   async function handleExport() {
     setStatus("loading");
@@ -2261,12 +2551,15 @@ function BackupView() {
   async function handleImport() {
     const file = fileRef.current?.files?.[0];
     if (!file) return;
+    if (mode === "remplacer" && !window.confirm(
+      "Mode REMPLACER : toutes les données actuelles seront remplacées par le contenu du backup. Continuer ?"
+    )) return;
     setStatus("loading");
     setMessage("");
     try {
       const text = await file.text();
       const json = JSON.parse(text);
-      const res = await apiFetch("/api/backup", { method: "POST", body: JSON.stringify(json) });
+      const res = await apiFetch(`/api/backup?mode=${mode}`, { method: "POST", body: JSON.stringify(json) });
       const data = await res.json();
       if (!res.ok) {
         setStatus("error");
@@ -2275,6 +2568,7 @@ function BackupView() {
       }
       setStatus("success");
       setMessage(data.message || "Restauration effectuée");
+      loadStatus();
     } catch {
       setStatus("error");
       setMessage("Fichier JSON invalide");
@@ -2288,6 +2582,39 @@ function BackupView() {
         <h1 className="text-xl font-bold sm:text-3xl">Sauvegarde</h1>
         <p className="mt-1 text-sm text-slate-400">Exporter ou restaurer vos données</p>
       </div>
+
+      {/* Statut du filet de sécurité */}
+      {info && (
+        <div className="mb-6 rounded-2xl border border-slate-700/50 bg-slate-800/50 p-6 backdrop-blur-sm">
+          <h2 className="mb-4 text-sm font-semibold text-white">État des sauvegardes automatiques</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-2xl font-bold text-teal-400">{info.snapshotsLocaux}</p>
+              <p className="text-xs text-slate-500">snapshots locaux (auto, à chaque écriture)</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-white">
+                {info.dernierSnapshot
+                  ? new Date(info.dernierSnapshot).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+                  : "—"}
+              </p>
+              <p className="text-xs text-slate-500">dernière sauvegarde</p>
+            </div>
+            <div>
+              <p className={`text-sm font-semibold ${info.backupGitHubActif ? "text-emerald-400" : "text-amber-400"}`}>
+                {info.backupGitHubActif ? "Activé" : "Non configuré"}
+              </p>
+              <p className="text-xs text-slate-500">backup GitHub distant{!info.backupGitHubActif && " (BACKUP_GITHUB_* dans .env)"}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-white">
+                {info.compteurs.temoignages} témoignages · {info.compteurs.evenements} événements
+              </p>
+              <p className="text-xs text-slate-500">{info.compteurs.types} types · {info.compteurs.invitations} invitations</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Export */}
@@ -2319,9 +2646,25 @@ function BackupView() {
             </div>
             <h2 className="text-lg font-semibold">Restaurer</h2>
           </div>
-          <p className="mb-6 text-sm text-slate-400">
-            Importer un fichier de backup JSON. Les données actuelles seront remplacées.
+          <p className="mb-4 text-sm text-slate-400">
+            Importer un fichier de backup JSON.
           </p>
+          <div className="mb-4 space-y-2">
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-700/50 bg-slate-900/40 px-3 py-2.5 text-sm transition-colors has-[:checked]:border-teal-500/40">
+              <input type="radio" name="restore-mode" checked={mode === "fusion"} onChange={() => setMode("fusion")} className="mt-0.5 accent-teal-500" />
+              <span>
+                <span className="font-medium text-white">Fusionner (recommandé)</span>
+                <span className="block text-xs text-slate-500">Ajoute uniquement ce qui manque — ne touche jamais aux données existantes</span>
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-700/50 bg-slate-900/40 px-3 py-2.5 text-sm transition-colors has-[:checked]:border-amber-500/40">
+              <input type="radio" name="restore-mode" checked={mode === "remplacer"} onChange={() => setMode("remplacer")} className="mt-0.5 accent-amber-500" />
+              <span>
+                <span className="font-medium text-white">Remplacer tout</span>
+                <span className="block text-xs text-slate-500">Remplace intégralement les données par le backup (confirmation demandée)</span>
+              </span>
+            </label>
+          </div>
           <div className="flex items-center gap-3">
             <input ref={fileRef} type="file" accept=".json" className="text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-800 file:px-4 file:py-2 file:text-sm file:font-medium file:text-slate-300 hover:file:bg-slate-700" />
             <button

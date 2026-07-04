@@ -29,6 +29,7 @@ npm run dev                 # http://localhost:3000
 ## API admin (cookie session requis)
 
 - `GET/POST /api/temoignages` — liste / créer
+- `POST /api/temoignages/importer` — import externe JSON/CSV (fusion, jamais destructif)
 - `GET/PUT /api/temoignages/:id` — détail / modifier (publie, note, texte…)
 - `GET/POST /api/types` — typologies de formulaires
 - `PUT/DELETE /api/types/:id`

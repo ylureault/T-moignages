@@ -378,6 +378,47 @@ export async function restoreBackup(backup: {
   await Promise.all(ops);
 }
 
+/**
+ * Fusionne un backup avec les données existantes SANS RIEN SUPPRIMER :
+ * - les entrées existantes sont conservées telles quelles (jamais écrasées) ;
+ * - seules les entrées dont l'id est inconnu sont ajoutées.
+ * C'est le mode de restauration par défaut : ré-importer un backup ne peut
+ * jamais faire perdre de données créées depuis.
+ */
+export async function mergeBackup(backup: {
+  temoignages: Temoignage[];
+  types: TypeTemoignage[];
+  evenements?: Evenement[];
+  invitations?: Invitation[];
+}): Promise<{ temoignages: number; types: number; evenements: number; invitations: number }> {
+  function mergeById<T extends { id: string }>(existants: T[], entrants: T[]): { merged: T[]; added: number } {
+    const ids = new Set(existants.map((e) => e.id));
+    const nouveaux = entrants.filter((e) => !ids.has(e.id));
+    return { merged: [...existants, ...nouveaux], added: nouveaux.length };
+  }
+
+  const [temoignages, types, evenements, invitations] = await Promise.all([
+    getTemoignages(),
+    getTypes(),
+    getEvenements(),
+    getInvitations(),
+  ]);
+
+  const mT = mergeById(temoignages, backup.temoignages);
+  const mY = mergeById(types, backup.types);
+  const mE = mergeById(evenements, backup.evenements ?? []);
+  const mI = mergeById(invitations, backup.invitations ?? []);
+
+  const ops: Promise<void>[] = [];
+  if (mT.added > 0) ops.push(saveTemoignages(mT.merged));
+  if (mY.added > 0) ops.push(saveTypes(mY.merged));
+  if (mE.added > 0) ops.push(saveEvenements(mE.merged));
+  if (mI.added > 0) ops.push(saveInvitations(mI.merged));
+  await Promise.all(ops);
+
+  return { temoignages: mT.added, types: mY.added, evenements: mE.added, invitations: mI.added };
+}
+
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
