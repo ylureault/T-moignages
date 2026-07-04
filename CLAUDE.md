@@ -225,8 +225,25 @@ Le thème est appliqué automatiquement selon le champ `marque` de l'événement
 
 - **TypeTemoignage** : modèle de formulaire réutilisable (note style, champs custom)
 - **Evenement** : événement lié à un client (entreprise) + banner + marque + type
-- **Invitation** : lien unique héritant de l'événement (client/type/marque)
+- **Invitation** : lien unique héritant de l'événement (client/type/marque) +
+  suivi d'envoi (`envoyeeAt`, `relanceAt`)
 - **Temoignage** : réponse client avec note, texte, `publie: boolean`, `champsPersonnalises`
+- **ModeleEmail** : message type (invitation/relance/remerciement) avec variables
+  `{prenom} {nom} {entreprise} {evenement} {lien} {signature}` — 5 modèles seedés
+
+## Collecte auprès des clients
+
+- **Modèles d'email** (vue admin dédiée, CRUD) : données dans `modeles-email.json`,
+  inclus dans les backups/fusion. API : `GET/POST /api/modeles`, `PUT/DELETE /api/modeles/[id]`
+- **Envoi** : bouton Envoyer/Relancer sur chaque invitation → modal avec choix du
+  modèle, variables résolues, texte modifiable. 3 canaux : envoi direct **Brevo**
+  (si configuré — `emailConfigure` dans /api/health), **mailto**, **copier** —
+  les deux derniers marquent aussi l'invitation comme envoyée.
+- **Suivi** : badges « Envoyée le… / Relancée le… / Jamais envoyée » + « À relancer »
+  après 7 jours sans réponse. `POST /api/invitations/[id]/envoyer`
+  (`{sujet, corps}` = envoi Brevo ; `{marquerSeulement: true}` = marquage seul).
+- **QR code par événement** (lib `qrcode`, généré côté client, aucune donnée
+  externe) : à projeter/imprimer en fin de séminaire, téléchargeable en PNG.
 
 ## Pages publiques
 

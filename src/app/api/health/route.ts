@@ -38,6 +38,7 @@ export async function GET() {
         donneesEcriture: dataWritable,
         motDePasseAdminConfigure: adminConfigure,
         backupGitHubActif: isRemoteBackupEnabled(),
+        emailConfigure: Boolean(process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL),
       },
       version: process.env.npm_package_version || "1.0.0",
       horodatage: new Date().toISOString(),

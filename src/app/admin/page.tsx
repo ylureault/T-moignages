@@ -1,9 +1,28 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { Temoignage, TypeTemoignage, Invitation, Evenement, ChampPersonnalise, NoteStyle } from "@/types";
+import type { Temoignage, TypeTemoignage, Invitation, Evenement, ChampPersonnalise, NoteStyle, ModeleEmail } from "@/types";
 
-type View = "dashboard" | "temoignages" | "types" | "evenements" | "invitations" | "api" | "backup";
+type View = "dashboard" | "temoignages" | "types" | "evenements" | "invitations" | "modeles" | "api" | "backup";
+
+/**
+ * Résout les variables d'un modèle d'email avec les infos de l'invitation
+ * et de son événement : {prenom} {nom} {entreprise} {evenement} {lien} {signature}.
+ */
+function resoudreVariables(texte: string, inv: Invitation, evt?: Evenement | null): string {
+  const prenom = (inv.nom || "").trim().split(/\s+/)[0] || "";
+  const lien = `${window.location.origin}/temoignages/nouveau?token=${inv.id}`;
+  const signature = inv.marque === "academie"
+    ? "Yoan Lureault — Insuffle Académie"
+    : "Yoan Lureault — Insuffle";
+  return texte
+    .split("{prenom}").join(prenom)
+    .split("{nom}").join(inv.nom || "")
+    .split("{entreprise}").join(inv.entreprise || "votre entreprise")
+    .split("{evenement}").join(evt?.nom || "notre collaboration")
+    .split("{lien}").join(lien)
+    .split("{signature}").join(signature);
+}
 
 const SOURCES = ["google", "trustpilot", "linkedin", "site", "autre"] as const;
 const MARQUES = ["insuffle", "academie"] as const;
@@ -82,6 +101,8 @@ const ICONS = {
   eyeOff: "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M3 3l18 18",
   userAnon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
   code: "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4",
+  qr: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM18 18h3v3h-3z",
+  send: "M12 19l9 2-9-18-9 18 9-2zm0 0v-8",
 };
 
 export default function AdminPage() {
@@ -204,6 +225,7 @@ function AdminShell({ onLogout }: { onLogout: () => void }) {
     { id: "types", label: "Types", icon: ICONS.inbox },
     { id: "evenements", label: "Événements", icon: ICONS.calendar },
     { id: "invitations", label: "Invitations", icon: ICONS.link },
+    { id: "modeles", label: "Modèles d'email", icon: ICONS.mail },
     { id: "api", label: "API & Flux", icon: ICONS.code },
     { id: "backup", label: "Sauvegarde", icon: ICONS.server },
   ];
@@ -317,6 +339,7 @@ function AdminShell({ onLogout }: { onLogout: () => void }) {
         {view === "types" && <TypesView />}
         {view === "evenements" && <EvenementsView />}
         {view === "invitations" && <InvitationsView />}
+        {view === "modeles" && <ModelesView />}
         {view === "api" && <ApiView />}
         {view === "backup" && <BackupView />}
       </main>
@@ -1658,6 +1681,7 @@ function EvenementsView() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [quickLinkBusy, setQuickLinkBusy] = useState<string | null>(null);
+  const [qrFor, setQrFor] = useState<Evenement | null>(null);
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -1864,6 +1888,14 @@ function EvenementsView() {
                     <Icon d={ICONS.mail} className="w-3 h-3" />
                     Email
                   </button>
+                  <button
+                    onClick={() => setQrFor(evt)}
+                    className="flex items-center gap-1 rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-slate-400 transition-colors hover:text-teal-400"
+                    title="QR code à projeter ou imprimer — les participants scannent et témoignent sur place"
+                  >
+                    <Icon d={ICONS.qr} className="w-3 h-3" />
+                    QR code
+                  </button>
                   <button onClick={() => setDeleteId(evt.id)} className="rounded-lg px-3 py-1.5 text-xs text-red-400 transition-all hover:bg-red-500/10">
                     Supprimer
                   </button>
@@ -1893,6 +1925,58 @@ function EvenementsView() {
           </div>
         </Modal>
       )}
+
+      {qrFor && <QrModal evt={qrFor} onClose={() => setQrFor(null)} />}
+    </div>
+  );
+}
+
+// ─── QR code d'un événement (collecte sur place) ──────────────
+function QrModal({ evt, onClose }: { evt: Evenement; onClose: () => void }) {
+  const [dataUrl, setDataUrl] = useState("");
+  const [copiedUrl, setCopiedUrl] = useState(false);
+  const url = `${window.location.origin}/temoignages/nouveau?event=${evt.id}`;
+
+  useEffect(() => {
+    // Généré côté client, aucune donnée n'est envoyée à un service externe.
+    import("qrcode")
+      .then((QR) => QR.toDataURL(url, { width: 640, margin: 2, color: { dark: "#0f172a", light: "#ffffff" } }))
+      .then(setDataUrl)
+      .catch(() => {});
+  }, [url]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl border border-slate-700/50 bg-slate-800 p-6 text-center" onClick={(e) => e.stopPropagation()}>
+        <h3 className="mb-1 text-lg font-semibold">{evt.nom}</h3>
+        <p className="mb-4 text-xs text-slate-500">
+          À projeter en fin de séance ou imprimer : les participants scannent et témoignent sur place.
+        </p>
+        {dataUrl ? (
+          <img src={dataUrl} alt={`QR code — ${evt.nom}`} className="mx-auto mb-4 w-56 rounded-xl bg-white p-2" />
+        ) : (
+          <div className="mx-auto mb-4 flex h-56 w-56 items-center justify-center rounded-xl bg-slate-900/50 text-xs text-slate-500">
+            Génération…
+          </div>
+        )}
+        <div className="flex justify-center gap-2">
+          {dataUrl && (
+            <a
+              href={dataUrl}
+              download={`qr-temoignages-${evt.id}.png`}
+              className="rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400"
+            >
+              Télécharger le PNG
+            </a>
+          )}
+          <button
+            onClick={() => navigator.clipboard.writeText(url).then(() => { setCopiedUrl(true); setTimeout(() => setCopiedUrl(false), 2000); })}
+            className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700"
+          >
+            {copiedUrl ? "Copié !" : "Copier le lien"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2071,10 +2155,13 @@ function InvitationsView() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [types, setTypes] = useState<TypeTemoignage[]>([]);
   const [evenements, setEvenements] = useState<Evenement[]>([]);
+  const [modeles, setModeles] = useState<ModeleEmail[]>([]);
+  const [emailOk, setEmailOk] = useState(false);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [envoiFor, setEnvoiFor] = useState<Invitation | null>(null);
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -2082,10 +2169,14 @@ function InvitationsView() {
       apiFetch("/api/invitations").then((r) => r.json()),
       fetch("/api/types").then((r) => r.json()),
       apiFetch("/api/evenements").then((r) => r.json()),
-    ]).then(([inv, tp, ev]) => {
+      apiFetch("/api/modeles").then((r) => r.json()),
+      fetch("/api/health").then((r) => r.json()).catch(() => null),
+    ]).then(([inv, tp, ev, md, health]) => {
       setInvitations(inv.data || []);
       setTypes(tp.data || []);
       setEvenements(ev.data || []);
+      setModeles(md.data || []);
+      setEmailOk(Boolean(health?.checks?.emailConfigure));
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -2100,16 +2191,11 @@ function InvitationsView() {
     });
   }
 
-  function shareLink(inv: Invitation) {
-    const url = `${window.location.origin}/temoignages/nouveau?token=${inv.id}`;
-    const subject = encodeURIComponent("Votre avis compte — partagez votre expérience");
-    const body = encodeURIComponent(
-      `Bonjour${inv.nom ? " " + inv.nom : ""},\n\n${inv.message || "Nous aimerions recueillir votre témoignage sur votre expérience avec Insuffle."}\n\nCliquez ici pour partager votre avis :\n${url}\n\nMerci !\nL'équipe Insuffle`
-    );
-    const mailto = inv.email
-      ? `mailto:${inv.email}?subject=${subject}&body=${body}`
-      : `mailto:?subject=${subject}&body=${body}`;
-    window.open(mailto);
+  /** Jours écoulés depuis le dernier contact (envoi ou relance). */
+  function joursDepuisContact(inv: Invitation): number | null {
+    const ref = inv.relanceAt || inv.envoyeeAt;
+    if (!ref) return null;
+    return Math.floor((Date.now() - new Date(ref).getTime()) / 86400000);
   }
 
   async function handleDelete(id: string) {
@@ -2186,6 +2272,25 @@ function InvitationsView() {
                           </span>
                         )}
                         <span className="text-xs text-slate-500">{new Date(inv.createdAt).toLocaleDateString("fr-FR")}</span>
+                        {/* Suivi de l'envoi : envoyée / relancée / à relancer */}
+                        {inv.relanceAt ? (
+                          <span className="rounded-lg bg-blue-500/20 px-2.5 py-1 text-xs font-medium text-blue-400">
+                            Relancée le {new Date(inv.relanceAt).toLocaleDateString("fr-FR")}
+                          </span>
+                        ) : inv.envoyeeAt ? (
+                          <span className="rounded-lg bg-blue-500/20 px-2.5 py-1 text-xs font-medium text-blue-400">
+                            Envoyée le {new Date(inv.envoyeeAt).toLocaleDateString("fr-FR")}
+                          </span>
+                        ) : (
+                          <span className="rounded-lg bg-slate-700/50 px-2.5 py-1 text-xs font-medium text-slate-500">
+                            Jamais envoyée
+                          </span>
+                        )}
+                        {(joursDepuisContact(inv) ?? 0) >= 7 && (
+                          <span className="rounded-lg bg-amber-500/20 px-2.5 py-1 text-xs font-medium text-amber-400">
+                            À relancer
+                          </span>
+                        )}
                       </div>
                       {inv.message && <p className="mt-2 text-sm text-slate-400 line-clamp-2">{inv.message}</p>}
                     </div>
@@ -2198,11 +2303,11 @@ function InvitationsView() {
                         {copied === inv.id ? "Copié !" : "Copier le lien"}
                       </button>
                       <button
-                        onClick={() => shareLink(inv)}
+                        onClick={() => setEnvoiFor(inv)}
                         className="flex items-center gap-1.5 rounded-lg bg-teal-500/20 px-3 py-2 text-xs font-medium text-teal-400 transition-colors hover:bg-teal-500/30"
                       >
-                        <Icon d={ICONS.mail} className="w-3.5 h-3.5" />
-                        Envoyer
+                        <Icon d={ICONS.send} className="w-3.5 h-3.5" />
+                        {inv.envoyeeAt ? "Relancer" : "Envoyer"}
                       </button>
                       <button
                         onClick={() => setDeleteId(inv.id)}
@@ -2273,6 +2378,177 @@ function InvitationsView() {
           </div>
         </Modal>
       )}
+
+      {envoiFor && (
+        <EnvoiModal
+          inv={envoiFor}
+          evt={envoiFor.evenementId ? evtMap[envoiFor.evenementId] || null : null}
+          modeles={modeles}
+          emailOk={emailOk}
+          onClose={() => setEnvoiFor(null)}
+          onDone={() => { setEnvoiFor(null); loadData(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Modal d'envoi d'email (modèles + variables résolues) ─────
+function EnvoiModal({
+  inv,
+  evt,
+  modeles,
+  emailOk,
+  onClose,
+  onDone,
+}: {
+  inv: Invitation;
+  evt: Evenement | null;
+  modeles: ModeleEmail[];
+  emailOk: boolean;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  // Suggestion intelligente : relance si déjà envoyée, sinon invitation.
+  const suggestion = modeles.find((m) => m.categorie === (inv.envoyeeAt ? "relance" : "invitation"));
+  const [modeleId, setModeleId] = useState(suggestion?.id || modeles[0]?.id || "");
+  const [sujet, setSujet] = useState(() => suggestion ? resoudreVariables(suggestion.sujet, inv, evt) : "");
+  const [corps, setCorps] = useState(() => suggestion ? resoudreVariables(suggestion.corps, inv, evt) : "");
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState("");
+
+  function choisirModele(id: string) {
+    setModeleId(id);
+    const m = modeles.find((x) => x.id === id);
+    if (m) {
+      setSujet(resoudreVariables(m.sujet, inv, evt));
+      setCorps(resoudreVariables(m.corps, inv, evt));
+    }
+  }
+
+  async function marquerEnvoyee() {
+    await apiFetch(`/api/invitations/${inv.id}/envoyer`, {
+      method: "POST",
+      body: JSON.stringify({ marquerSeulement: true }),
+    }).catch(() => {});
+    onDone();
+  }
+
+  async function envoyerBrevo() {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await apiFetch(`/api/invitations/${inv.id}/envoyer`, {
+        method: "POST",
+        body: JSON.stringify({ sujet, corps }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.brevoIndisponible
+          ? "Envoi direct non configuré (BREVO_API_KEY) — utilisez « Ouvrir dans mon email » ou « Copier »"
+          : data.error || "Erreur lors de l'envoi");
+        setBusy(false);
+        return;
+      }
+      onDone();
+    } catch {
+      setError("Erreur de connexion");
+      setBusy(false);
+    }
+  }
+
+  function ouvrirMailto() {
+    const mailto = `mailto:${inv.email || ""}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+    window.open(mailto);
+    marquerEnvoyee();
+  }
+
+  function copier() {
+    navigator.clipboard.writeText(`${sujet}\n\n${corps}`).then(() => {
+      setCopied(true);
+      setTimeout(() => { marquerEnvoyee(); }, 600);
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-700/50 bg-slate-800 p-5 sm:p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">{inv.envoyeeAt ? "Relancer" : "Envoyer l'invitation"}</h3>
+            <p className="text-xs text-slate-500">
+              {inv.nom || "Client"}{inv.email ? ` · ${inv.email}` : " · pas d'email renseigné"}
+              {evt ? ` · ${evt.nom}` : ""}
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-700 hover:text-white">
+            <Icon d={ICONS.close} className="w-5 h-5" />
+          </button>
+        </div>
+
+        {modeles.length > 0 && (
+          <div className="mb-3">
+            <label className="mb-1.5 block text-xs font-medium text-slate-400">Modèle</label>
+            <select
+              value={modeleId}
+              onChange={(e) => choisirModele(e.target.value)}
+              className="w-full rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2.5 text-sm text-white outline-none focus:border-teal-500"
+            >
+              {modeles.map((m) => (
+                <option key={m.id} value={m.id}>{m.nom} ({m.categorie})</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="mb-3">
+          <label className="mb-1.5 block text-xs font-medium text-slate-400">Sujet</label>
+          <input
+            value={sujet}
+            onChange={(e) => setSujet(e.target.value)}
+            className="w-full rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2.5 text-sm text-white outline-none focus:border-teal-500"
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="mb-1.5 block text-xs font-medium text-slate-400">Message (variables déjà remplacées, modifiable)</label>
+          <textarea
+            value={corps}
+            onChange={(e) => setCorps(e.target.value)}
+            rows={11}
+            className="w-full rounded-xl border border-slate-700 bg-slate-900/50 p-3 text-sm text-white outline-none focus:border-teal-500"
+          />
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-xl bg-amber-500/20 px-4 py-3 text-sm font-medium text-amber-300">{error}</div>
+        )}
+
+        <div className="flex flex-wrap justify-end gap-2">
+          <button onClick={copier} className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700">
+            <Icon d={ICONS.copy} className="w-4 h-4" />
+            {copied ? "Copié !" : "Copier le message"}
+          </button>
+          <button onClick={ouvrirMailto} className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700">
+            <Icon d={ICONS.mail} className="w-4 h-4" />
+            Ouvrir dans mon email
+          </button>
+          {emailOk && inv.email && (
+            <button
+              onClick={envoyerBrevo}
+              disabled={busy || !sujet.trim() || !corps.trim()}
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400 disabled:opacity-50"
+            >
+              <Icon d={ICONS.send} className="w-4 h-4" />
+              {busy ? "Envoi…" : `Envoyer à ${inv.email}`}
+            </button>
+          )}
+        </div>
+        <p className="mt-3 text-right text-xs text-slate-500">
+          « Copier » et « Ouvrir dans mon email » marquent aussi l&apos;invitation comme envoyée.
+        </p>
+      </div>
     </div>
   );
 }
@@ -2412,6 +2688,240 @@ function InvitationForm({ types, evenements, onSave, onCancel }: { types: TypeTe
 }
 
 // ─── Backup/Restore ───────────────────────────────────────────
+// ─── Modèles d'email ──────────────────────────────────────────
+const CATEGORIES_MODELE: { value: ModeleEmail["categorie"]; label: string; color: string }[] = [
+  { value: "invitation", label: "Invitation", color: "text-teal-400 bg-teal-500/20" },
+  { value: "relance", label: "Relance", color: "text-amber-400 bg-amber-500/20" },
+  { value: "remerciement", label: "Remerciement", color: "text-emerald-400 bg-emerald-500/20" },
+  { value: "autre", label: "Autre", color: "text-slate-400 bg-slate-700/50" },
+];
+
+function ModelesView() {
+  const [modeles, setModeles] = useState<ModeleEmail[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<ModeleEmail | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const loadData = useCallback(() => {
+    setLoading(true);
+    apiFetch("/api/modeles").then((r) => r.json()).then((d) => {
+      setModeles(d.data || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  async function handleDelete(id: string) {
+    const res = await apiFetch(`/api/modeles/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setModeles((prev) => prev.filter((m) => m.id !== id));
+      setDeleteId(null);
+    }
+  }
+
+  if (loading) return <Loader />;
+
+  if (creating || editing) {
+    return (
+      <ModeleForm
+        initial={editing}
+        onClose={() => { setEditing(null); setCreating(false); loadData(); }}
+      />
+    );
+  }
+
+  const catInfo = Object.fromEntries(CATEGORIES_MODELE.map((c) => [c.value, c]));
+
+  return (
+    <div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold sm:text-3xl">Modèles d&apos;email</h1>
+          <p className="mt-1 text-sm text-slate-400">
+            Vos messages prêts à envoyer — les variables {"{prenom} {entreprise} {evenement} {lien}"} sont remplies automatiquement
+          </p>
+        </div>
+        <button
+          onClick={() => setCreating(true)}
+          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-5 py-2.5 font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400"
+        >
+          <Icon d={ICONS.plus} className="w-4 h-4" />
+          Nouveau modèle
+        </button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {modeles.map((m) => {
+          const cat = catInfo[m.categorie] || catInfo.autre;
+          return (
+            <div key={m.id} className="flex flex-col rounded-2xl border border-slate-700/50 bg-slate-800/50 p-5 backdrop-blur-sm transition-all hover:border-teal-500/20">
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <h3 className="font-semibold text-white">{m.nom}</h3>
+                <span className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium ${cat.color}`}>{cat.label}</span>
+              </div>
+              <p className="mb-1 text-sm font-medium text-slate-300">{m.sujet}</p>
+              <p className="mb-4 flex-1 whitespace-pre-line text-xs text-slate-500 line-clamp-4">{m.corps}</p>
+              <div className="flex gap-2">
+                <button onClick={() => setEditing(m)} className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:text-white">
+                  Modifier
+                </button>
+                <button onClick={() => setDeleteId(m.id)} className="rounded-lg px-3 py-1.5 text-xs text-red-400 transition-all hover:bg-red-500/10">
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {modeles.length === 0 && (
+        <div className="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-12 text-center backdrop-blur-sm">
+          <Icon d={ICONS.mail} className="mx-auto mb-4 w-12 h-12 text-slate-600" />
+          <p className="text-slate-400">Aucun modèle. Créez votre premier message type.</p>
+        </div>
+      )}
+
+      {deleteId && (
+        <Modal onClose={() => setDeleteId(null)}>
+          <div className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/20">
+              <Icon d={ICONS.trash} className="w-6 h-6 text-red-400" />
+            </div>
+            <h3 className="mb-2 text-lg font-semibold">Supprimer ce modèle ?</h3>
+            <p className="mb-6 text-sm text-slate-400">Les invitations déjà envoyées ne sont pas affectées.</p>
+            <div className="flex justify-center gap-3">
+              <button onClick={() => setDeleteId(null)} className="rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700">Annuler</button>
+              <button onClick={() => handleDelete(deleteId)} className="rounded-xl bg-red-500/20 px-5 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/30">Supprimer</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function ModeleForm({ initial, onClose }: { initial: ModeleEmail | null; onClose: () => void }) {
+  const [form, setForm] = useState({
+    nom: initial?.nom || "",
+    categorie: initial?.categorie || "invitation",
+    sujet: initial?.sujet || "",
+    corps: initial?.corps || "",
+  });
+  const [savedId, setSavedId] = useState(initial?.id || "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    setSaved(false);
+    try {
+      // On reste sur le formulaire après enregistrement (POST puis PUT).
+      const url = savedId ? `/api/modeles/${savedId}` : "/api/modeles";
+      const method = savedId ? "PUT" : "POST";
+      const res = await apiFetch(url, { method, body: JSON.stringify(form) });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Erreur");
+      } else {
+        setSavedId(data.data.id);
+        setSaved(true);
+      }
+    } catch {
+      setError("Erreur de connexion");
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div>
+      <div className="mb-6 flex items-center gap-3">
+        <button onClick={onClose} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white">
+          <Icon d={ICONS.chevronLeft} className="w-5 h-5" />
+        </button>
+        <h1 className="text-xl font-bold sm:text-2xl">{initial ? "Modifier le modèle" : "Nouveau modèle d'email"}</h1>
+      </div>
+
+      <form onSubmit={handleSubmit} className="max-w-3xl space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-300">Nom du modèle</label>
+            <input
+              value={form.nom}
+              onChange={(e) => setForm({ ...form, nom: e.target.value })}
+              required
+              className="w-full rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2.5 text-sm text-white outline-none focus:border-teal-500"
+              placeholder="Ex : Invitation après séminaire"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-300">Catégorie</label>
+            <select
+              value={form.categorie}
+              onChange={(e) => setForm({ ...form, categorie: e.target.value as ModeleEmail["categorie"] })}
+              className="w-full rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2.5 text-sm text-white outline-none focus:border-teal-500"
+            >
+              {CATEGORIES_MODELE.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-300">Sujet</label>
+          <input
+            value={form.sujet}
+            onChange={(e) => setForm({ ...form, sujet: e.target.value })}
+            required
+            className="w-full rounded-xl border border-slate-700 bg-slate-900/50 px-3 py-2.5 text-sm text-white outline-none focus:border-teal-500"
+            placeholder="Ex : Votre retour sur {evenement}"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-300">Message</label>
+          <textarea
+            value={form.corps}
+            onChange={(e) => setForm({ ...form, corps: e.target.value })}
+            required
+            rows={14}
+            className="w-full rounded-xl border border-slate-700 bg-slate-900/50 p-3 text-sm text-white outline-none focus:border-teal-500"
+            placeholder={"Bonjour {prenom},\n\n… votre message …\n\n👉 {lien}\n\n{signature}"}
+          />
+        </div>
+
+        <div className="rounded-xl border border-slate-700/50 bg-slate-900/40 px-4 py-3 text-xs text-slate-400">
+          Variables remplacées automatiquement à l&apos;envoi :{" "}
+          <code className="text-teal-400">{"{prenom}"}</code> <code className="text-teal-400">{"{nom}"}</code>{" "}
+          <code className="text-teal-400">{"{entreprise}"}</code> <code className="text-teal-400">{"{evenement}"}</code>{" "}
+          <code className="text-teal-400">{"{lien}"}</code> (lien unique du client) <code className="text-teal-400">{"{signature}"}</code> (selon la marque)
+        </div>
+
+        {error && <div className="rounded-xl bg-red-500/20 px-4 py-3 text-sm font-medium text-red-300">{error}</div>}
+        {saved && !error && (
+          <div className="rounded-xl bg-emerald-500/20 px-4 py-3 text-sm font-medium text-emerald-300">✓ Enregistré</div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-6 py-2.5 font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400 disabled:opacity-50"
+          >
+            {saving ? "Enregistrement…" : "Enregistrer"}
+          </button>
+          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 px-6 py-2.5 font-medium text-slate-300 transition-colors hover:bg-slate-700">
+            Retour à la liste
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 // ─── API & Flux : liens de lecture prêts à copier ─────────────
 function ApiView() {
   const [evenements, setEvenements] = useState<Evenement[]>([]);

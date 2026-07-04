@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { randomBytes } from "crypto";
-import type { Temoignage, TypeTemoignage, Invitation, Evenement } from "@/types";
+import type { Temoignage, TypeTemoignage, Invitation, Evenement, ModeleEmail } from "@/types";
 import { backupNow, readLatestLocalSnapshot, readRemoteBackup, type FullBackup } from "./persist";
 
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
@@ -9,6 +9,97 @@ const TEMOIGNAGES_FILE = path.join(DATA_DIR, "temoignages.json");
 const TYPES_FILE = path.join(DATA_DIR, "types.json");
 const INVITATIONS_FILE = path.join(DATA_DIR, "invitations.json");
 const EVENEMENTS_FILE = path.join(DATA_DIR, "evenements.json");
+const MODELES_FILE = path.join(DATA_DIR, "modeles-email.json");
+
+/**
+ * Modèles d'email par défaut, seedés uniquement si le fichier est absent.
+ * Ton Insuffle : chaleureux, direct, sans jargon. Variables : {prenom} {nom}
+ * {entreprise} {evenement} {lien} {signature}.
+ */
+const DEFAULT_MODELES: ModeleEmail[] = [
+  {
+    id: "invitation-evenement",
+    nom: "Invitation après un événement",
+    categorie: "invitation",
+    sujet: "Votre retour sur {evenement} compte pour nous",
+    corps: `Bonjour {prenom},
+
+Merci encore pour votre participation à {evenement} — c'était un vrai plaisir de travailler avec vous et l'équipe de {entreprise}.
+
+Votre regard compte énormément : il nous aide à progresser et aide d'autres dirigeants à se projeter. Auriez-vous 3 minutes pour partager votre expérience ?
+
+👉 {lien}
+
+C'est court, direct, et chaque réponse est lue avec attention.
+
+Merci d'avance,
+{signature}`,
+  },
+  {
+    id: "invitation-generique",
+    nom: "Invitation générique (hors événement)",
+    categorie: "invitation",
+    sujet: "Un petit retour sur notre collaboration ?",
+    corps: `Bonjour {prenom},
+
+J'espère que tout se passe bien chez {entreprise} depuis notre dernière collaboration.
+
+Votre avis m'est précieux : auriez-vous quelques minutes pour partager votre expérience ? Cela prend 3 minutes et cela m'aide énormément.
+
+👉 {lien}
+
+Merci beaucoup,
+{signature}`,
+  },
+  {
+    id: "relance-douce",
+    nom: "Relance douce",
+    categorie: "relance",
+    sujet: "Re : votre retour sur {evenement}",
+    corps: `Bonjour {prenom},
+
+Je me permets une petite relance — je sais à quel point les journées sont pleines.
+
+Si vous avez 3 minutes cette semaine, votre retour sur {evenement} me serait vraiment utile :
+
+👉 {lien}
+
+Et si ce n'est pas le bon moment, aucun souci : dites-le-moi simplement.
+
+Belle journée,
+{signature}`,
+  },
+  {
+    id: "remerciement",
+    nom: "Remerciement après témoignage",
+    categorie: "remerciement",
+    sujet: "Merci pour votre témoignage !",
+    corps: `Bonjour {prenom},
+
+Un immense merci pour votre témoignage — je viens de le lire et il me touche beaucoup.
+
+C'est grâce à des retours comme le vôtre que d'autres équipes osent franchir le pas. Si vous êtes d'accord, il pourra apparaître sur nos supports (site, réseaux) — dites-moi si vous préférez une version anonymisée.
+
+Au plaisir de continuer la route ensemble,
+{signature}`,
+  },
+  {
+    id: "invitation-formation",
+    nom: "Invitation après une formation (Académie)",
+    categorie: "invitation",
+    sujet: "Votre avis sur la formation {evenement}",
+    corps: `Bonjour {prenom},
+
+Merci pour votre énergie pendant la formation {evenement} !
+
+Pour continuer à améliorer nos formations — et aider les futurs participants à se décider — votre retour à chaud est précieux. 3 minutes suffisent :
+
+👉 {lien}
+
+Merci beaucoup, et à très bientôt,
+{signature}`,
+  },
+];
 
 const DEFAULT_TYPES: TypeTemoignage[] = [
   // ── Séminaires ──────────────────────────────────────────────
@@ -211,6 +302,7 @@ async function maybeRestore(): Promise<void> {
     [TYPES_FILE, "types"],
     [EVENEMENTS_FILE, "evenements"],
     [INVITATIONS_FILE, "invitations"],
+    [MODELES_FILE, "modeles"],
   ];
 
   const missing = await Promise.all(targets.map(([f]) => fileMissing(f)));
@@ -262,6 +354,12 @@ async function ensureDataDir(): Promise<void> {
     await fs.access(EVENEMENTS_FILE);
   } catch {
     await fs.writeFile(EVENEMENTS_FILE, "[]", "utf-8");
+  }
+
+  try {
+    await fs.access(MODELES_FILE);
+  } catch {
+    await fs.writeFile(MODELES_FILE, JSON.stringify(DEFAULT_MODELES, null, 2), "utf-8");
   }
 
   initialized = true;
@@ -347,20 +445,31 @@ export async function saveEvenements(data: Evenement[]): Promise<void> {
   await afterWrite();
 }
 
+export async function getModeles(): Promise<ModeleEmail[]> {
+  return readJSON<ModeleEmail[]>(MODELES_FILE);
+}
+
+export async function saveModeles(data: ModeleEmail[]): Promise<void> {
+  await withLock(MODELES_FILE, () => writeJSON(MODELES_FILE, data));
+  await afterWrite();
+}
+
 export async function getFullBackup(): Promise<{
   temoignages: Temoignage[];
   types: TypeTemoignage[];
   evenements: Evenement[];
   invitations: Invitation[];
+  modeles: ModeleEmail[];
   exportDate: string;
 }> {
-  const [temoignages, types, evenements, invitations] = await Promise.all([
+  const [temoignages, types, evenements, invitations, modeles] = await Promise.all([
     getTemoignages(),
     getTypes(),
     getEvenements(),
     getInvitations(),
+    getModeles(),
   ]);
-  return { temoignages, types, evenements, invitations, exportDate: new Date().toISOString() };
+  return { temoignages, types, evenements, invitations, modeles, exportDate: new Date().toISOString() };
 }
 
 export async function restoreBackup(backup: {
@@ -368,6 +477,7 @@ export async function restoreBackup(backup: {
   types: TypeTemoignage[];
   evenements?: Evenement[];
   invitations?: Invitation[];
+  modeles?: ModeleEmail[];
 }): Promise<void> {
   const ops = [
     saveTemoignages(backup.temoignages),
@@ -375,6 +485,7 @@ export async function restoreBackup(backup: {
   ];
   if (backup.evenements) ops.push(saveEvenements(backup.evenements));
   if (backup.invitations) ops.push(saveInvitations(backup.invitations));
+  if (backup.modeles && backup.modeles.length > 0) ops.push(saveModeles(backup.modeles));
   await Promise.all(ops);
 }
 
@@ -390,33 +501,37 @@ export async function mergeBackup(backup: {
   types: TypeTemoignage[];
   evenements?: Evenement[];
   invitations?: Invitation[];
-}): Promise<{ temoignages: number; types: number; evenements: number; invitations: number }> {
+  modeles?: ModeleEmail[];
+}): Promise<{ temoignages: number; types: number; evenements: number; invitations: number; modeles: number }> {
   function mergeById<T extends { id: string }>(existants: T[], entrants: T[]): { merged: T[]; added: number } {
     const ids = new Set(existants.map((e) => e.id));
     const nouveaux = entrants.filter((e) => !ids.has(e.id));
     return { merged: [...existants, ...nouveaux], added: nouveaux.length };
   }
 
-  const [temoignages, types, evenements, invitations] = await Promise.all([
+  const [temoignages, types, evenements, invitations, modeles] = await Promise.all([
     getTemoignages(),
     getTypes(),
     getEvenements(),
     getInvitations(),
+    getModeles(),
   ]);
 
   const mT = mergeById(temoignages, backup.temoignages);
   const mY = mergeById(types, backup.types);
   const mE = mergeById(evenements, backup.evenements ?? []);
   const mI = mergeById(invitations, backup.invitations ?? []);
+  const mM = mergeById(modeles, backup.modeles ?? []);
 
   const ops: Promise<void>[] = [];
   if (mT.added > 0) ops.push(saveTemoignages(mT.merged));
   if (mY.added > 0) ops.push(saveTypes(mY.merged));
   if (mE.added > 0) ops.push(saveEvenements(mE.merged));
   if (mI.added > 0) ops.push(saveInvitations(mI.merged));
+  if (mM.added > 0) ops.push(saveModeles(mM.merged));
   await Promise.all(ops);
 
-  return { temoignages: mT.added, types: mY.added, evenements: mE.added, invitations: mI.added };
+  return { temoignages: mT.added, types: mY.added, evenements: mE.added, invitations: mI.added, modeles: mM.added };
 }
 
 export function generateId(): string {

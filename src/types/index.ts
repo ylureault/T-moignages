@@ -73,4 +73,21 @@ export interface Invitation {
   createdAt: string;
   used: boolean;
   usedAt?: string;
+  /** Date du premier envoi de l'email d'invitation. */
+  envoyeeAt?: string;
+  /** Date de la dernière relance. */
+  relanceAt?: string;
+}
+
+/**
+ * Modèle d'email réutilisable pour la collecte de témoignages.
+ * Variables disponibles dans sujet et corps : {prenom} {nom} {entreprise}
+ * {evenement} {lien} {signature} — résolues au moment de l'envoi.
+ */
+export interface ModeleEmail {
+  id: string;
+  nom: string;
+  categorie: "invitation" | "relance" | "remerciement" | "autre";
+  sujet: string;
+  corps: string;
 }

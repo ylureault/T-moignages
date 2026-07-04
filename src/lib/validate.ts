@@ -1,4 +1,4 @@
-import type { Temoignage, TypeTemoignage, Evenement, Invitation } from "@/types";
+import type { Temoignage, TypeTemoignage, Evenement, Invitation, ModeleEmail } from "@/types";
 
 const VALID_SOURCES = ["google", "trustpilot", "linkedin", "site", "autre"];
 const VALID_MARQUES = ["insuffle", "academie"];
@@ -150,6 +150,39 @@ export function validateInvitation(raw: unknown): Result<Invitation> {
     createdAt: isString(o.createdAt) ? o.createdAt : new Date().toISOString(),
     used: typeof o.used === "boolean" ? o.used : false,
     ...(isString(o.usedAt) ? { usedAt: o.usedAt } : {}),
+    ...(isString(o.envoyeeAt) ? { envoyeeAt: o.envoyeeAt } : {}),
+    ...(isString(o.relanceAt) ? { relanceAt: o.relanceAt } : {}),
+  };
+  return { ok: true, value };
+}
+
+/** Valide un modèle d'email (CRUD / restauration). */
+export function validateModele(raw: unknown): Result<ModeleEmail> {
+  if (typeof raw !== "object" || raw === null) {
+    return { ok: false, error: "Modèle invalide (objet attendu)" };
+  }
+  const o = raw as Record<string, unknown>;
+  if (!isString(o.id) || o.id.length === 0 || o.id.length > 64) {
+    return { ok: false, error: "id de modèle invalide" };
+  }
+  if (!isString(o.nom) || o.nom.length === 0 || o.nom.length > 120) {
+    return { ok: false, error: "nom de modèle invalide" };
+  }
+  if (!isString(o.sujet) || o.sujet.length === 0 || o.sujet.length > 300) {
+    return { ok: false, error: "sujet invalide (1-300 caractères)" };
+  }
+  if (!isString(o.corps) || o.corps.length === 0 || o.corps.length > 10000) {
+    return { ok: false, error: "corps invalide (1-10000 caractères)" };
+  }
+  const categories = ["invitation", "relance", "remerciement", "autre"];
+  const value: ModeleEmail = {
+    id: o.id,
+    nom: o.nom,
+    categorie: (isString(o.categorie) && categories.includes(o.categorie)
+      ? o.categorie
+      : "autre") as ModeleEmail["categorie"],
+    sujet: o.sujet,
+    corps: o.corps,
   };
   return { ok: true, value };
 }
@@ -159,6 +192,7 @@ export type ValidatedBackup = {
   types: TypeTemoignage[];
   evenements: Evenement[];
   invitations: Invitation[];
+  modeles: ModeleEmail[];
 };
 
 /**
@@ -179,10 +213,12 @@ export function validateBackup(raw: unknown): Result<ValidatedBackup> {
   }
   const evenementsRaw = Array.isArray(o.evenements) ? o.evenements : [];
   const invitationsRaw = Array.isArray(o.invitations) ? o.invitations : [];
+  const modelesRaw = Array.isArray(o.modeles) ? o.modeles : [];
 
   // Garde-fous de volume.
   if (o.temoignages.length > 100000 || o.types.length > 1000 ||
-      evenementsRaw.length > 10000 || invitationsRaw.length > 100000) {
+      evenementsRaw.length > 10000 || invitationsRaw.length > 100000 ||
+      modelesRaw.length > 1000) {
     return { ok: false, error: "Volume de données trop important" };
   }
 
@@ -214,5 +250,12 @@ export function validateBackup(raw: unknown): Result<ValidatedBackup> {
     invitations.push(r.value);
   }
 
-  return { ok: true, value: { temoignages, types, evenements, invitations } };
+  const modeles: ModeleEmail[] = [];
+  for (let i = 0; i < modelesRaw.length; i++) {
+    const r = validateModele(modelesRaw[i]);
+    if (!r.ok) return { ok: false, error: `modeles[${i}]: ${r.error}` };
+    modeles.push(r.value);
+  }
+
+  return { ok: true, value: { temoignages, types, evenements, invitations, modeles } };
 }
