@@ -484,8 +484,8 @@ function TemoignagesView() {
   const [importing, setImporting] = useState(false);
   const [showArchives, setShowArchives] = useState(false);
 
-  const loadData = useCallback(() => {
-    setLoading(true);
+  const loadData = useCallback((silent = false) => {
+    if (!silent) setLoading(true);
     Promise.all([
       fetch(`/api/temoignages?limit=100000${showArchives ? "&archives=1" : ""}`).then((r) => r.json()),
       fetch("/api/types").then((r) => r.json()),
@@ -534,7 +534,10 @@ function TemoignagesView() {
     if (res.ok) loadData();
   }
 
-  async function handleSave(data: Record<string, unknown>) {
+  // Reste sur le formulaire après enregistrement (préférence : ne pas
+  // renvoyer à la liste). Rechargement silencieux, et après une création on
+  // bascule en mode édition pour que les sauvegardes suivantes soient des PUT.
+  async function handleSave(data: Record<string, unknown>): Promise<boolean> {
     setSaving(true);
     setError("");
     try {
@@ -546,15 +549,17 @@ function TemoignagesView() {
       if (!res.ok) {
         setError(result.error || "Erreur");
         setSaving(false);
-        return;
+        return false;
       }
-      loadData();
-      setEditing(null);
-      setCreating(false);
+      if (!isEdit && result.data) { setEditing(result.data); setCreating(false); }
+      loadData(true);
+      setSaving(false);
+      return true;
     } catch {
       setError("Erreur de connexion");
+      setSaving(false);
+      return false;
     }
-    setSaving(false);
   }
 
   if (loading) return <Loader />;
@@ -980,9 +985,11 @@ function TemoignageForm({
   evenements: Evenement[];
   saving: boolean;
   error: string;
-  onSave: (data: Record<string, unknown>) => void;
+  onSave: (data: Record<string, unknown>) => Promise<boolean>;
   onCancel: () => void;
 }) {
+  const [justSaved, setJustSaved] = useState(false);
+  const [savedOnce, setSavedOnce] = useState(!!initial);
   const [form, setForm] = useState({
     auteur: initial?.auteur || "",
     entreprise: initial?.entreprise || "",
@@ -1011,7 +1018,7 @@ function TemoignageForm({
     setForm((f) => ({ ...f, [key]: val }));
   };
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const data: Record<string, unknown> = {
       auteur: form.auteur,
@@ -1040,7 +1047,12 @@ function TemoignageForm({
     } else {
       data.reponse = null;
     }
-    onSave(data);
+    const ok = await onSave(data);
+    if (ok) {
+      setSavedOnce(true);
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2500);
+    }
   }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>, field: "avatar" | "heroImage") {
@@ -1235,11 +1247,16 @@ function TemoignageForm({
             disabled={saving}
             className="rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-6 py-3 font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:from-teal-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {saving ? "Enregistrement…" : initial ? "Mettre à jour" : "Créer"}
+            {saving ? "Enregistrement…" : savedOnce ? "Mettre à jour" : "Créer"}
           </button>
           <button type="button" onClick={onCancel} className="rounded-xl bg-slate-800/50 px-5 py-3 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
-            Annuler
+            {savedOnce ? "Retour à la liste" : "Annuler"}
           </button>
+          {justSaved && (
+            <span className="flex items-center gap-1.5 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-sm font-medium text-emerald-400">
+              <Icon d={ICONS.check} className="w-4 h-4" />Enregistré
+            </span>
+          )}
         </div>
       </form>
     </div>
