@@ -22,6 +22,7 @@ export async function OPTIONS() {
  *   ?marque=insuffle|academie
  *   ?type=<typeId>
  *   ?event=<evenementId>
+ *   ?animateur=<nom>   (intervenant : facilitateur / formateur)
  *   ?note=5            (note minimale)
  *   ?limit=20
  *   ?anonyme=1         (anonymise les auteurs : "Marie Dupont" -> "Marie D.")
@@ -54,6 +55,9 @@ export async function GET(request: NextRequest) {
   const noteMin = parseInt(searchParams.get("note") || "0", 10);
   if (noteMin > 0) results = results.filter((t) => t.note >= noteMin);
 
+  const animateur = searchParams.get("animateur");
+  if (animateur) results = results.filter((t) => (t.animateur || "").toLowerCase() === animateur.toLowerCase());
+
   results.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const limit = parseInt(searchParams.get("limit") || "0", 10);
@@ -81,6 +85,7 @@ export async function GET(request: NextRequest) {
       contenu: t.contenu,
       date: t.date,
       marque: t.marque,
+      animateur: t.animateur || undefined,
       verifie: t.verifie,
       recommande: t.recommande,
       avatar: anonyme ? undefined : t.avatar || undefined,

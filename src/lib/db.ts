@@ -110,7 +110,7 @@ const DEFAULT_TYPES: TypeTemoignage[] = [
     champs: [
       { id: "objectif-atteint", label: "L'objectif du séminaire a-t-il été atteint ?", type: "select", required: true, options: ["Totalement", "En grande partie", "Partiellement", "Pas vraiment"] },
       { id: "alignement", label: "Alignement de l'équipe après le séminaire", type: "note" },
-      { id: "facilitation", label: "Qualité de la facilitation (Yoan)", type: "note" },
+      { id: "facilitation", label: "Qualité de la facilitation", type: "note" },
       { id: "decisions", label: "Les décisions prises sont-elles claires et actionnables ?", type: "select", options: ["Oui, très claires", "Plutôt claires", "Encore floues", "Non"] },
       { id: "moment-fort", label: "Quel a été le moment le plus marquant ?", type: "textarea", placeholder: "Le moment où quelque chose a basculé…" },
       { id: "suite", label: "Que comptez-vous mettre en place dès lundi ?", type: "textarea", placeholder: "Les premières actions concrètes…" },

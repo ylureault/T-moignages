@@ -228,10 +228,13 @@ Le thème est appliqué automatiquement selon le champ `marque` de l'événement
 ## Modèle de données (src/types/index.ts)
 
 - **TypeTemoignage** : modèle de formulaire réutilisable (note style, champs custom)
-- **Evenement** : événement lié à un client (entreprise) + banner + marque + type
+- **Evenement** : événement lié à un client (entreprise) + banner + marque + type +
+  `animateurs?: string[]` (intervenants : facilitateur(s) Insuffle / formateur(s) Académie,
+  zéro/un/plusieurs par événement)
 - **Invitation** : lien unique héritant de l'événement (client/type/marque) +
   suivi d'envoi (`envoyeeAt`, `relanceAt`)
-- **Temoignage** : réponse client avec note, texte, `publie: boolean`, `champsPersonnalises`
+- **Temoignage** : réponse client avec note, texte, `publie: boolean`, `champsPersonnalises`,
+  `animateur?: string` (intervenant ciblé — **l'admin l'attribue**, le client ne choisit pas)
 - **ModeleEmail** : message type (invitation/relance/remerciement) avec variables
   `{prenom} {nom} {entreprise} {evenement} {lien} {signature}` — 5 modèles seedés
 

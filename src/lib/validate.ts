@@ -5,6 +5,20 @@ const VALID_MARQUES = ["insuffle", "academie"];
 
 type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 
+/** Nettoie une liste d'intervenants : chaînes non vides, uniques (casse ignorée), ≤ 20. */
+export function normalizeAnimateurs(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const a of raw) {
+    if (typeof a !== "string") continue;
+    const v = a.trim().slice(0, 200);
+    if (v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); out.push(v); }
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
 function isString(v: unknown): v is string {
   return typeof v === "string";
 }
@@ -66,6 +80,7 @@ export function validateTemoignage(raw: unknown): Result<Temoignage> {
       ? { heroImage: o.heroImage }
       : {}),
     ...(isString(o.evenementId) ? { evenementId: o.evenementId } : {}),
+    ...(isString(o.animateur) && o.animateur.length <= 200 ? { animateur: o.animateur } : {}),
     ...(o.champsPersonnalises && typeof o.champsPersonnalises === "object"
       ? { champsPersonnalises: o.champsPersonnalises as Record<string, unknown> }
       : {}),
@@ -121,6 +136,9 @@ export function validateEvenement(raw: unknown): Result<Evenement> {
     typeId: isString(o.typeId) ? o.typeId : "",
     ...(isString(o.entreprise) && o.entreprise ? { entreprise: o.entreprise.slice(0, 200) } : {}),
     ...(isString(o.bannerImage) && o.bannerImage.length <= 512 ? { bannerImage: o.bannerImage } : {}),
+    ...(Array.isArray(o.animateurs)
+      ? { animateurs: (o.animateurs as unknown[]).filter(isString).map((a) => (a as string).trim().slice(0, 200)).filter(Boolean).slice(0, 20) }
+      : {}),
     date: isString(o.date) ? o.date : new Date().toISOString().split("T")[0],
     ...(isString(o.lieu) && o.lieu ? { lieu: o.lieu.slice(0, 200) } : {}),
     marque: (isString(o.marque) && VALID_MARQUES.includes(o.marque) ? o.marque : "insuffle") as Evenement["marque"],

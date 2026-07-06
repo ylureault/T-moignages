@@ -24,6 +24,7 @@ interface EventInfo {
   typeId: string;
   entreprise?: string;
   bannerImage?: string;
+  animateurs?: string[];
   date: string;
   lieu?: string;
   marque: "insuffle" | "academie";
@@ -383,6 +384,12 @@ function NouveauTemoignageContent() {
               </h1>
               {eventInfo.entreprise && (
                 <p className="mt-2 text-sm font-medium text-accent">{eventInfo.entreprise}</p>
+              )}
+              {eventInfo.animateurs && eventInfo.animateurs.length > 0 && (
+                <p className="mt-1 text-sm text-muted">
+                  {eventInfo.marque === "academie" ? "Animé par " : "Facilité par "}
+                  {eventInfo.animateurs.join(", ")}
+                </p>
               )}
               <p className="mx-auto mt-3 max-w-md text-sm text-muted sm:text-base">{eventInfo.description || typeInfo?.description}</p>
               {eventInfo.lieu && (

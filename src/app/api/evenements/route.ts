@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEvenements, saveEvenements, generateId } from "@/lib/db";
 import { requireAuth, isAdmin } from "@/lib/auth";
+import { normalizeAnimateurs } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
     typeId: body.typeId,
     entreprise: body.entreprise || undefined,
     bannerImage: body.bannerImage || undefined,
+    animateurs: normalizeAnimateurs(body.animateurs),
     date: body.date || new Date().toISOString().split("T")[0],
     lieu: body.lieu || undefined,
     marque: body.marque === "academie" ? "academie" as const : "insuffle" as const,

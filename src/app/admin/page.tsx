@@ -15,11 +15,13 @@ function resoudreVariables(texte: string, inv: Invitation, evt?: Evenement | nul
   const signature = inv.marque === "academie"
     ? "Yoan Lureault — Insuffle Académie"
     : "Yoan Lureault — Insuffle";
+  const intervenant = evt?.animateurs && evt.animateurs.length > 0 ? evt.animateurs.join(", ") : "";
   return texte
     .split("{prenom}").join(prenom)
     .split("{nom}").join(inv.nom || "")
     .split("{entreprise}").join(inv.entreprise || "votre entreprise")
     .split("{evenement}").join(evt?.nom || "notre collaboration")
+    .split("{intervenant}").join(intervenant)
     .split("{lien}").join(lien)
     .split("{signature}").join(signature);
 }
@@ -477,6 +479,7 @@ function TemoignagesView() {
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
   const [filterMarque, setFilterMarque] = useState<string>("");
+  const [filterAnimateur, setFilterAnimateur] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -500,8 +503,14 @@ function TemoignagesView() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Liste des intervenants présents sur des témoignages (pour le filtre).
+  const animateursDispo = Array.from(
+    new Set(temoignages.map((t) => t.animateur).filter((a): a is string => !!a))
+  ).sort();
+
   const filtered = temoignages.filter((t) => {
     if (filterMarque && t.marque !== filterMarque) return false;
+    if (filterAnimateur && (t.animateur || "") !== filterAnimateur) return false;
     if (search) {
       const s = search.toLowerCase();
       return t.auteur.toLowerCase().includes(s) || t.entreprise.toLowerCase().includes(s) || t.contenu.toLowerCase().includes(s);
@@ -625,6 +634,16 @@ function TemoignagesView() {
           <option value="insuffle">Insuffle</option>
           <option value="academie">Académie</option>
         </select>
+        {animateursDispo.length > 0 && (
+          <select
+            value={filterAnimateur}
+            onChange={(e) => setFilterAnimateur(e.target.value)}
+            className="rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-2.5 text-sm text-white outline-none focus:border-teal-500"
+          >
+            <option value="">Tous les intervenants</option>
+            {animateursDispo.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+        )}
         <button
           onClick={() => setShowArchives(!showArchives)}
           className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
@@ -689,9 +708,16 @@ function TemoignagesView() {
                 </td>
                 <td className="hidden px-2 py-3 sm:px-4 sm:py-4 xl:table-cell">
                   {t.evenementId && evtMap[t.evenementId] ? (
-                    <span className="rounded-lg bg-cyan-500/20 px-2.5 py-1 text-xs font-medium text-cyan-400">
-                      {evtMap[t.evenementId].nom}
-                    </span>
+                    <div className="flex flex-col items-start gap-1">
+                      <span className="rounded-lg bg-cyan-500/20 px-2.5 py-1 text-xs font-medium text-cyan-400">
+                        {evtMap[t.evenementId].nom}
+                      </span>
+                      {t.animateur && (
+                        <span className="rounded-lg bg-slate-700/40 px-2.5 py-1 text-xs font-medium text-slate-300">{t.animateur}</span>
+                      )}
+                    </div>
+                  ) : t.animateur ? (
+                    <span className="rounded-lg bg-slate-700/40 px-2.5 py-1 text-xs font-medium text-slate-300">{t.animateur}</span>
                   ) : (
                     <span className="text-xs text-slate-600">—</span>
                   )}
@@ -1010,8 +1036,11 @@ function TemoignageForm({
     reponseContenu: initial?.reponse?.contenu || "",
     reponseDate: initial?.reponse?.date || "",
     evenementId: initial?.evenementId || "",
+    animateur: initial?.animateur || "",
   });
   const [uploading, setUploading] = useState(false);
+  // Intervenants proposés = ceux de l'événement lié (c'est l'admin qui choisit).
+  const evtAnimateurs = evenements.find((e) => e.id === form.evenementId)?.animateurs || [];
 
   const update = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const val = e.target.type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value;
@@ -1038,6 +1067,7 @@ function TemoignageForm({
     };
     if (form.heroImage) data.heroImage = form.heroImage;
     if (form.evenementId) data.evenementId = form.evenementId;
+    data.animateur = form.animateur || "";
     if (form.reponseContenu) {
       data.reponse = {
         auteur: form.reponseAuteur || "Insuffle",
@@ -1151,11 +1181,21 @@ function TemoignageForm({
             </div>
             <div>
               <label className={labelClass}>Événement (optionnel)</label>
-              <select value={form.evenementId} onChange={update("evenementId")} className={inputClass}>
+              <select value={form.evenementId} onChange={(e) => { update("evenementId")(e); setForm((f) => ({ ...f, animateur: "" })); }} className={inputClass}>
                 <option value="">— Aucun —</option>
                 {evenements.map((ev) => <option key={ev.id} value={ev.id}>{ev.nom}</option>)}
               </select>
             </div>
+            {evtAnimateurs.length > 0 && (
+              <div>
+                <label className={labelClass}>Intervenant concerné</label>
+                <select value={form.animateur} onChange={update("animateur")} className={inputClass}>
+                  <option value="">— Non précisé —</option>
+                  {evtAnimateurs.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+                <p className="mt-1 text-xs text-slate-500">Le facilitateur / formateur que ce témoignage concerne.</p>
+              </div>
+            )}
           </div>
           <div className="mt-4 flex flex-wrap gap-6">
             <label className="flex items-center gap-2 text-sm text-slate-300">
@@ -1924,6 +1964,15 @@ function EvenementsView() {
                   {evt.lieu && <span>{evt.lieu}</span>}
                 </div>
 
+                {evt.animateurs && evt.animateurs.length > 0 && (
+                  <div className="mb-3 flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs text-slate-500">{evt.marque === "academie" ? "Formateur" : "Facilitateur"}{evt.animateurs.length > 1 ? "s" : ""} :</span>
+                    {evt.animateurs.map((a) => (
+                      <span key={a} className="rounded-md bg-slate-700/40 px-2 py-0.5 text-xs font-medium text-slate-300">{a}</span>
+                    ))}
+                  </div>
+                )}
+
                 {/* Link */}
                 <div className="mb-3 rounded-lg bg-slate-900/50 px-3 py-2">
                   <p className="mb-1 text-xs text-slate-500">Lien de l&apos;événement</p>
@@ -2078,7 +2127,23 @@ function EvenementForm({
     marque: initial?.marque || "insuffle",
     actif: initial?.actif ?? true,
   });
+  const [animateurs, setAnimateurs] = useState<string[]>(initial?.animateurs || []);
+  const [animateurInput, setAnimateurInput] = useState("");
   const [uploading, setUploading] = useState(false);
+
+  // Libellé contextuel : Insuffle = facilitateur, Académie = formateur.
+  const intervenantLabel = form.marque === "academie" ? "Formateur" : "Facilitateur";
+
+  function addAnimateur() {
+    const v = animateurInput.trim();
+    if (v && !animateurs.some((a) => a.toLowerCase() === v.toLowerCase())) {
+      setAnimateurs((prev) => [...prev, v]);
+    }
+    setAnimateurInput("");
+  }
+  function removeAnimateur(name: string) {
+    setAnimateurs((prev) => prev.filter((a) => a !== name));
+  }
   const [savedId, setSavedId] = useState<string | null>(initial?.id || null);
   const [saving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
@@ -2096,8 +2161,13 @@ function EvenementForm({
     const isEdit = !!savedId;
     const url = isEdit ? `/api/evenements/${savedId}` : "/api/evenements";
     const method = isEdit ? "PUT" : "POST";
+    // Inclut la saisie en cours non validée par Entrée, pour ne rien perdre.
+    const pending = animateurInput.trim();
+    const animateursFinal = pending && !animateurs.some((a) => a.toLowerCase() === pending.toLowerCase())
+      ? [...animateurs, pending]
+      : animateurs;
     try {
-      const res = await apiFetch(url, { method, body: JSON.stringify(form) });
+      const res = await apiFetch(url, { method, body: JSON.stringify({ ...form, animateurs: animateursFinal }) });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Erreur"); setSaving(false); return; }
       if (data.data?.id) setSavedId(data.data.id);
@@ -2160,6 +2230,36 @@ function EvenementForm({
           <label className={labelClass}>Client / Entreprise</label>
           <input value={form.entreprise} onChange={update("entreprise")} className={inputClass} placeholder="Acme Inc." />
           <p className="mt-1 text-xs text-slate-500">Le client lié à cet événement. Pré-rempli automatiquement dans le formulaire et les liens de partage.</p>
+        </div>
+        <div>
+          <label className={labelClass}>{intervenantLabel}(s)</label>
+          <div className="flex items-center gap-2">
+            <input
+              value={animateurInput}
+              onChange={(e) => setAnimateurInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAnimateur(); } }}
+              className={`${inputClass} flex-1`}
+              placeholder={form.marque === "academie" ? "Nom du formateur (Entrée pour ajouter)" : "Nom du facilitateur (Entrée pour ajouter)"}
+            />
+            <button type="button" onClick={addAnimateur} className="shrink-0 rounded-xl bg-slate-800 px-4 py-3 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700">
+              Ajouter
+            </button>
+          </div>
+          {animateurs.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {animateurs.map((a) => (
+                <span key={a} className="inline-flex items-center gap-1.5 rounded-lg bg-teal-500/15 px-3 py-1.5 text-sm font-medium text-teal-300">
+                  {a}
+                  <button type="button" onClick={() => removeAnimateur(a)} className="text-teal-400/70 transition-colors hover:text-red-400" aria-label={`Retirer ${a}`}>
+                    <Icon d={ICONS.close} className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="mt-1 text-xs text-slate-500">
+            Un, plusieurs ou aucun. C&apos;est vous qui attribuez ensuite chaque témoignage à un {intervenantLabel.toLowerCase()} — le client ne le choisit pas.
+          </p>
         </div>
         <div>
           <label className={labelClass}>Bannière de l&apos;événement</label>
@@ -2971,6 +3071,7 @@ function ModeleForm({ initial, onClose }: { initial: ModeleEmail | null; onClose
           Variables remplacées automatiquement à l&apos;envoi :{" "}
           <code className="text-teal-400">{"{prenom}"}</code> <code className="text-teal-400">{"{nom}"}</code>{" "}
           <code className="text-teal-400">{"{entreprise}"}</code> <code className="text-teal-400">{"{evenement}"}</code>{" "}
+          <code className="text-teal-400">{"{intervenant}"}</code> (facilitateur/formateur){" "}
           <code className="text-teal-400">{"{lien}"}</code> (lien unique du client) <code className="text-teal-400">{"{signature}"}</code> (selon la marque)
         </div>
 

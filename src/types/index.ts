@@ -22,6 +22,8 @@ export interface Temoignage {
   heroImage?: string;
   marque: "insuffle" | "academie";
   evenementId?: string;
+  /** Intervenant ciblé par le témoignage (⊂ animateurs de l'événement). */
+  animateur?: string;
   champsPersonnalises?: Record<string, unknown>;
   publie: boolean;
   /**
@@ -60,6 +62,12 @@ export interface Evenement {
   typeId: string;
   entreprise?: string;
   bannerImage?: string;
+  /**
+   * Intervenant(s) de l'événement : facilitateur(s) (Insuffle) ou
+   * formateur(s) (Académie). Zéro, un ou plusieurs, propres à chaque
+   * événement. Le témoignage peut cibler l'un d'eux.
+   */
+  animateurs?: string[];
   date: string;
   lieu?: string;
   marque: "insuffle" | "academie";

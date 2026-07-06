@@ -160,6 +160,7 @@ export async function POST(request: NextRequest) {
     recommande: body.recommande ?? true,
     ...(body.heroImage ? { heroImage: body.heroImage } : {}),
     ...(body.evenementId ? { evenementId: body.evenementId } : {}),
+    ...(body.animateur ? { animateur: body.animateur } : {}),
     ...(body.champsPersonnalises ? { champsPersonnalises: body.champsPersonnalises } : {}),
     publie: body.publie ?? true,
   };

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEvenements, saveEvenements, getTypes } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { normalizeAnimateurs } from "@/lib/validate";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,7 @@ export async function PUT(
   if (body.typeId !== undefined) evenements[index].typeId = body.typeId;
   if (body.entreprise !== undefined) evenements[index].entreprise = body.entreprise;
   if (body.bannerImage !== undefined) evenements[index].bannerImage = body.bannerImage;
+  if (body.animateurs !== undefined) evenements[index].animateurs = normalizeAnimateurs(body.animateurs);
   if (body.date !== undefined) evenements[index].date = body.date;
   if (body.lieu !== undefined) evenements[index].lieu = body.lieu;
   if (body.marque !== undefined) evenements[index].marque = body.marque;
