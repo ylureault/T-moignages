@@ -193,7 +193,11 @@ docker run -d \
 
 ## Persistance des données — Règles critiques
 
-1. **JAMAIS supprimer de données en production** — les témoignages se masquent (`publie: false`), jamais supprimés
+1. **JAMAIS supprimer de données en production** — aucune suppression physique de
+   témoignage n'existe : `DELETE /api/temoignages/[id]` **archive** (`archive: true`,
+   dépublié), restaurable via `PUT { archive: false }` (vue « Archivés » dans l'admin).
+   Un archivé est invisible partout (public, feed, admin par défaut, citation → 404)
+   et ne peut pas être republié sans restauration préalable.
 2. **`/data/` est gitignored** — un `git pull` ou redéploiement ne touche jamais les données
 3. **`ensureDataDir()`** crée les fichiers JSON seulement s'ils sont absents, jamais d'écrasement
 4. **`maybeRestore()`** restaure depuis backup uniquement les fichiers manquants
@@ -244,6 +248,15 @@ Le thème est appliqué automatiquement selon le champ `marque` de l'événement
   (`{sujet, corps}` = envoi Brevo ; `{marquerSeulement: true}` = marquage seul).
 - **QR code par événement** (lib `qrcode`, généré côté client, aucune donnée
   externe) : à projeter/imprimer en fin de séminaire, téléchargeable en PNG.
+
+## Formulaire client (UX minimale)
+
+- Via lien unique (`?token=`) : le client voit **note + témoignage**, c'est tout —
+  identité affichée en puce compacte (bouton Modifier), poste/email repliés,
+  questions spécifiques repliées (leurs champs requis ne s'appliquent que si la
+  section est ouverte : un feedback rapide n'est jamais bloqué).
+- L'ordre : note → témoignage → identité → extras. Les sélecteurs marque/type
+  n'apparaissent qu'en accès libre (jamais via invitation/événement).
 
 ## Pages publiques
 

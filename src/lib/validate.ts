@@ -70,6 +70,7 @@ export function validateTemoignage(raw: unknown): Result<Temoignage> {
       ? { champsPersonnalises: o.champsPersonnalises as Record<string, unknown> }
       : {}),
     publie: typeof o.publie === "boolean" ? o.publie : true,
+    ...(typeof o.archive === "boolean" ? { archive: o.archive } : {}),
   };
   return { ok: true, value };
 }

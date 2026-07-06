@@ -78,6 +78,8 @@ export async function PUT(
     ...body,
     id,
   };
+  // Un témoignage archivé ne peut pas être publié : restaurer d'abord.
+  if (updated.archive) updated.publie = false;
 
   temoignages[index] = updated;
   await saveTemoignages(temoignages);
@@ -85,6 +87,11 @@ export async function PUT(
   return NextResponse.json({ success: true, data: updated });
 }
 
+/**
+ * SÉCURITÉ DONNÉES : il n'existe AUCUNE suppression physique de témoignage.
+ * DELETE archive (archive: true, dépublié) — le témoignage reste dans le
+ * fichier et peut être restauré à tout moment (PUT { archive: false }).
+ */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -103,8 +110,12 @@ export async function DELETE(
     );
   }
 
-  const deleted = temoignages.splice(index, 1)[0];
+  temoignages[index] = { ...temoignages[index], archive: true, publie: false };
   await saveTemoignages(temoignages);
 
-  return NextResponse.json({ success: true, data: deleted });
+  return NextResponse.json({
+    success: true,
+    data: temoignages[index],
+    message: "Témoignage archivé (jamais supprimé) — restaurable à tout moment",
+  });
 }

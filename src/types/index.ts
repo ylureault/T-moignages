@@ -24,6 +24,12 @@ export interface Temoignage {
   evenementId?: string;
   champsPersonnalises?: Record<string, unknown>;
   publie: boolean;
+  /**
+   * Archivé = retiré de partout (public + admin par défaut) mais JAMAIS
+   * supprimé du fichier : restaurable à tout moment. Aucune suppression
+   * physique de témoignage n'existe dans l'application.
+   */
+  archive?: boolean;
 }
 
 export interface ChampPersonnalise {

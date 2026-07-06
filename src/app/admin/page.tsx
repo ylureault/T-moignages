@@ -433,7 +433,14 @@ function DashboardView({ onNav }: { onNav: (v: View) => void }) {
         </div>
         <div className="space-y-3">
           {recent.map((t) => (
-            <div key={t.id} className="flex items-center gap-4 rounded-xl border border-slate-800/50 p-4 transition-colors hover:bg-slate-800/30">
+            <a
+              key={t.id}
+              href={`/temoignages/${t.id}`}
+              target="_blank"
+              rel="noreferrer"
+              title="Ouvrir la page du témoignage"
+              className="flex cursor-pointer items-center gap-4 rounded-xl border border-slate-800/50 p-4 transition-colors hover:border-teal-500/30 hover:bg-slate-800/30"
+            >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-700 text-sm font-bold">
                 {t.auteur.charAt(0).toUpperCase()}
               </div>
@@ -444,11 +451,14 @@ function DashboardView({ onNav }: { onNav: (v: View) => void }) {
                   <span className={`rounded-lg px-2 py-0.5 text-xs font-medium ${t.marque === "academie" ? "bg-purple-500/20 text-purple-400" : "bg-teal-500/20 text-teal-400"}`}>
                     {t.marque}
                   </span>
+                  {t.publie === false && (
+                    <span className="rounded-lg bg-slate-700/50 px-2 py-0.5 text-xs font-medium text-slate-500">Non publié</span>
+                  )}
                 </div>
                 <p className="truncate text-sm text-slate-400">{t.contenu}</p>
               </div>
               <span className="shrink-0 text-xs text-slate-500">{t.date}</span>
-            </div>
+            </a>
           ))}
           {recent.length === 0 && <p className="text-sm text-slate-500">Aucun témoignage</p>}
         </div>
@@ -472,11 +482,12 @@ function TemoignagesView() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [socialFor, setSocialFor] = useState<Temoignage | null>(null);
   const [importing, setImporting] = useState(false);
+  const [showArchives, setShowArchives] = useState(false);
 
   const loadData = useCallback(() => {
     setLoading(true);
     Promise.all([
-      fetch("/api/temoignages?limit=100000").then((r) => r.json()),
+      fetch(`/api/temoignages?limit=100000${showArchives ? "&archives=1" : ""}`).then((r) => r.json()),
       fetch("/api/types").then((r) => r.json()),
       apiFetch("/api/evenements").then((r) => r.json()),
     ]).then(([td, tp, ev]) => {
@@ -485,7 +496,7 @@ function TemoignagesView() {
       setEvenements(ev.data || []);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, []);
+  }, [showArchives]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -498,12 +509,21 @@ function TemoignagesView() {
     return true;
   });
 
-  async function handleDelete(id: string) {
+  /** Archive (jamais de suppression physique) : restaurable depuis la vue Archivés. */
+  async function handleArchive(id: string) {
     const res = await apiFetch(`/api/temoignages/${id}`, { method: "DELETE" });
     if (res.ok) {
       setTemoignages((prev) => prev.filter((t) => t.id !== id));
       setDeleteId(null);
     }
+  }
+
+  async function handleRestore(t: Temoignage) {
+    const res = await apiFetch(`/api/temoignages/${t.id}`, {
+      method: "PUT",
+      body: JSON.stringify({ archive: false }),
+    });
+    if (res.ok) setTemoignages((prev) => prev.filter((x) => x.id !== t.id));
   }
 
   async function togglePublie(t: Temoignage) {
@@ -600,7 +620,25 @@ function TemoignagesView() {
           <option value="insuffle">Insuffle</option>
           <option value="academie">Académie</option>
         </select>
+        <button
+          onClick={() => setShowArchives(!showArchives)}
+          className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
+            showArchives
+              ? "border-amber-500/40 bg-amber-500/10 text-amber-400"
+              : "border-slate-700 bg-slate-900/50 text-slate-400 hover:text-white"
+          }`}
+          title="Les témoignages archivés ne sont jamais supprimés : ils restent restaurables ici"
+        >
+          {showArchives ? "← Retour aux témoignages" : "Archivés"}
+        </button>
       </div>
+
+      {showArchives && (
+        <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300/90">
+          Archives : rien n&apos;est jamais supprimé. Un témoignage archivé est retiré de partout
+          mais reste stocké — cliquez « Restaurer » pour le récupérer.
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-x-auto rounded-2xl border border-slate-700/50 bg-slate-800/50 backdrop-blur-sm">
@@ -656,18 +694,29 @@ function TemoignagesView() {
                 <td className="px-2 py-3 sm:px-4 sm:py-4 text-sm text-slate-400">{t.date}</td>
                 <td className="px-2 py-3 sm:px-4 sm:py-4">
                   <div className="flex items-center gap-1">
-                    <button onClick={() => setSocialFor(t)} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700/50 hover:text-teal-400" title="Voir le témoignage complet & formats réseaux sociaux">
-                      <Icon d={ICONS.eye} className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => togglePublie(t)} className={`rounded-lg p-2 transition-colors ${t.publie === false ? "text-slate-500 hover:bg-emerald-500/10 hover:text-emerald-400" : "text-emerald-400 hover:bg-slate-700/50 hover:text-slate-400"}`} title={t.publie === false ? "Publier" : "Masquer"}>
-                      <Icon d={t.publie === false ? ICONS.eyeOff : ICONS.eye} className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => setEditing(t)} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700/50 hover:text-white" title="Modifier">
-                      <Icon d={ICONS.edit} className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => setDeleteId(t.id)} className="rounded-lg p-2 text-slate-400 transition-all hover:bg-red-500/10 hover:text-red-400" title="Supprimer">
-                      <Icon d={ICONS.trash} className="w-4 h-4" />
-                    </button>
+                    {showArchives ? (
+                      <button
+                        onClick={() => handleRestore(t)}
+                        className="rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-medium text-emerald-400 transition-colors hover:bg-emerald-500/25"
+                      >
+                        Restaurer
+                      </button>
+                    ) : (
+                      <>
+                        <button onClick={() => setSocialFor(t)} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700/50 hover:text-teal-400" title="Voir le témoignage complet & formats réseaux sociaux">
+                          <Icon d={ICONS.eye} className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => togglePublie(t)} className={`rounded-lg p-2 transition-colors ${t.publie === false ? "text-slate-500 hover:bg-emerald-500/10 hover:text-emerald-400" : "text-emerald-400 hover:bg-slate-700/50 hover:text-slate-400"}`} title={t.publie === false ? "Publier" : "Masquer"}>
+                          <Icon d={t.publie === false ? ICONS.eyeOff : ICONS.eye} className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => setEditing(t)} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700/50 hover:text-white" title="Modifier">
+                          <Icon d={ICONS.edit} className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => setDeleteId(t.id)} className="rounded-lg p-2 text-slate-400 transition-all hover:bg-amber-500/10 hover:text-amber-400" title="Archiver (jamais supprimé, restaurable)">
+                          <Icon d={ICONS.trash} className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -679,21 +728,24 @@ function TemoignagesView() {
         </table>
       </div>
 
-      {/* Delete confirmation modal */}
+      {/* Confirmation d'archivage (jamais de suppression) */}
       {deleteId && (
         <Modal onClose={() => setDeleteId(null)}>
           <div className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/20">
-              <Icon d={ICONS.trash} className="w-6 h-6 text-red-400" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/20">
+              <Icon d={ICONS.trash} className="w-6 h-6 text-amber-400" />
             </div>
-            <h3 className="mb-2 text-lg font-semibold">Supprimer ce témoignage ?</h3>
-            <p className="mb-6 text-sm text-slate-400">Cette action est irréversible.</p>
+            <h3 className="mb-2 text-lg font-semibold">Archiver ce témoignage ?</h3>
+            <p className="mb-6 text-sm text-slate-400">
+              Il sera retiré de partout mais <strong className="text-slate-300">jamais supprimé</strong> —
+              restaurable à tout moment depuis la vue « Archivés ».
+            </p>
             <div className="flex justify-center gap-3">
               <button onClick={() => setDeleteId(null)} className="rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700">
                 Annuler
               </button>
-              <button onClick={() => handleDelete(deleteId)} className="rounded-xl bg-red-500/20 px-5 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/30">
-                Supprimer
+              <button onClick={() => handleArchive(deleteId)} className="rounded-xl bg-amber-500/20 px-5 py-2.5 text-sm font-medium text-amber-400 transition-colors hover:bg-amber-500/30">
+                Archiver
               </button>
             </div>
           </div>
@@ -1211,8 +1263,12 @@ function TypesView() {
     });
   }
 
-  const loadTypes = useCallback(() => {
-    setLoading(true);
+  // `silent` : rafraîchit les données SANS passer par l'état loading.
+  // Indispensable pendant qu'un formulaire est ouvert : sinon le Loader
+  // remplace (démonte) le formulaire en plein enregistrement et le remonte
+  // avec les anciennes valeurs — les modifications semblent perdues.
+  const loadTypes = useCallback((silent = false) => {
+    if (!silent) setLoading(true);
     fetch("/api/types").then((r) => r.json()).then((d) => {
       setTypes(d.data || []);
       setLoading(false);
@@ -1232,7 +1288,7 @@ function TypesView() {
   if (loading) return <Loader />;
 
   if (creating || editing) {
-    return <TypeForm initial={editing} onSaved={loadTypes} onClose={() => { setEditing(null); setCreating(false); loadTypes(); }} />;
+    return <TypeForm initial={editing} onSaved={() => loadTypes(true)} onClose={() => { setEditing(null); setCreating(false); loadTypes(); }} />;
   }
 
   return (
@@ -1683,8 +1739,9 @@ function EvenementsView() {
   const [quickLinkBusy, setQuickLinkBusy] = useState<string | null>(null);
   const [qrFor, setQrFor] = useState<Evenement | null>(null);
 
-  const loadData = useCallback(() => {
-    setLoading(true);
+  // `silent` : voir loadTypes — ne jamais démonter un formulaire ouvert.
+  const loadData = useCallback((silent = false) => {
+    if (!silent) setLoading(true);
     Promise.all([
       apiFetch("/api/evenements").then((r) => r.json()),
       fetch("/api/types").then((r) => r.json()),
@@ -1773,7 +1830,7 @@ function EvenementsView() {
       <EvenementForm
         initial={editing}
         types={types}
-        onSaved={loadData}
+        onSaved={() => loadData(true)}
         onClose={() => { setEditing(null); setCreating(false); loadData(); }}
       />
     );

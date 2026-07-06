@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   const typeMap = Object.fromEntries(types.map((t) => [t.id, t]));
   const evtMap = Object.fromEntries(evenements.map((e) => [e.id, e]));
 
-  let results = temoignages.filter((t) => t.publie !== false);
+  let results = temoignages.filter((t) => t.publie !== false && t.archive !== true);
 
   const marque = searchParams.get("marque");
   if (marque === "insuffle" || marque === "academie") {

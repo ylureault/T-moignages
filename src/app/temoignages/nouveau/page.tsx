@@ -68,6 +68,11 @@ function NouveauTemoignageContent() {
   const [invitationUsed, setInvitationUsed] = useState(false);
   const [eventInactive, setEventInactive] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
+  // UX minimale : les détails facultatifs (poste, email) et les questions
+  // spécifiques sont repliés — le client voit note + texte + nom, c'est tout.
+  const [showExtra, setShowExtra] = useState(false);
+  const [showQuestions, setShowQuestions] = useState(false);
+  const [editIdentity, setEditIdentity] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -157,7 +162,11 @@ function NouveauTemoignageContent() {
       return;
     }
 
-    const requiredChamps = typeInfo?.champs.filter((c) => c.required) || [];
+    // Les questions spécifiques ne bloquent jamais un feedback rapide :
+    // leurs champs requis ne comptent que si la section a été ouverte.
+    const requiredChamps = showQuestions
+      ? typeInfo?.champs.filter((c) => c.required) || []
+      : [];
     for (const champ of requiredChamps) {
       const val = champsValues[champ.id];
       if (!val || (typeof val === "string" && !val.trim())) {
@@ -206,6 +215,13 @@ function NouveauTemoignageContent() {
   }
 
   const noteStyle: NoteStyle = typeInfo?.noteStyle || "stars";
+  // Identité déjà connue via l'invitation : on l'affiche en résumé au lieu
+  // de re-demander — le formulaire se réduit à la note et au témoignage.
+  const identitePrefilled = Boolean(tokenParam) && form.auteur.trim().length > 0;
+  // Feedback rapide avant tout : une note + un commentaire suffisent TOUJOURS.
+  // Les questions spécifiques restent repliées (leurs champs requis ne
+  // s'appliquent que si le client choisit d'ouvrir la section).
+  const questionsVisibles = showQuestions;
 
   if (invitationUsed) {
     return (
@@ -419,99 +435,8 @@ function NouveauTemoignageContent() {
             />
           </div>
 
-          {/* Champs standard */}
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Nom complet" required>
-              <input
-                required
-                value={form.auteur}
-                onChange={update("auteur")}
-                maxLength={200}
-                className="input"
-                placeholder="Marie Dupont"
-              />
-            </Field>
-            <Field label="Email (privé)">
-              <input
-                type="email"
-                value={form.email}
-                onChange={update("email")}
-                className="input"
-                placeholder="marie@entreprise.com"
-              />
-            </Field>
-            <Field label="Poste">
-              <input
-                value={form.poste}
-                onChange={update("poste")}
-                maxLength={200}
-                className="input"
-                placeholder="Directrice Générale"
-              />
-            </Field>
-            <Field label="Entreprise">
-              <input
-                value={form.entreprise}
-                onChange={update("entreprise")}
-                maxLength={200}
-                className="input"
-                placeholder="Votre société"
-              />
-            </Field>
-          </div>
-
-          {!eventInfo && (
-            <div className="mt-5">
-              <Field label="À quel sujet ?">
-                <select value={form.marque} onChange={update("marque")} className="input">
-                  <option value="insuffle">Conseil & accompagnement (Insuffle)</option>
-                  <option value="academie">Formation (Insuffle Académie)</option>
-                </select>
-              </Field>
-            </div>
-          )}
-
-          {!typeParam && !eventParam && allTypes.length > 0 && (
-            <div className="mt-5">
-              <Field label="Type de témoignage">
-                <select
-                  value={selectedType}
-                  onChange={(e) => {
-                    setSelectedType(e.target.value);
-                    const found = allTypes.find((t) => t.id === e.target.value);
-                    setTypeInfo(found || null);
-                    setChampsValues({});
-                  }}
-                  className="input"
-                >
-                  <option value="">— Général —</option>
-                  {allTypes.map((t) => (
-                    <option key={t.id} value={t.id}>{t.label}</option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-          )}
-
-          {/* Champs personnalisés du type */}
-          {typeInfo && typeInfo.champs.length > 0 && (
-            <div className="mt-8 space-y-5 border-t border-line pt-8">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-soft">
-                Questions spécifiques
-              </p>
-              {typeInfo.champs.map((champ) => (
-                <ChampField
-                  key={champ.id}
-                  champ={champ}
-                  noteStyle={noteStyle}
-                  value={champsValues[champ.id]}
-                  onChange={(val) => updateChamp(champ.id, val)}
-                />
-              ))}
-            </div>
-          )}
-
-          <div className="mt-5">
+          {/* L'essentiel d'abord : le témoignage lui-même */}
+          <div>
             <Field label="Votre témoignage" required>
               <textarea
                 required
@@ -521,13 +446,156 @@ function NouveauTemoignageContent() {
                 maxLength={5000}
                 minLength={10}
                 className="input resize-none"
-                placeholder="Qu'est-ce qui a réellement changé pour votre organisation ?"
+                placeholder="Qu'est-ce qui a réellement changé pour vous ou votre organisation ?"
               />
               <span className="mt-1 block text-right text-xs text-muted-soft">
                 {form.contenu.length}/5000
               </span>
             </Field>
           </div>
+
+          {/* Qui témoigne — résumé compact si déjà connu via l'invitation */}
+          {identitePrefilled && !editIdentity ? (
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-dark/40 px-4 py-3">
+              <p className="text-sm text-ink">
+                Vous témoignez en tant que <strong>{form.auteur}</strong>
+                {form.entreprise && <span className="text-muted"> · {form.entreprise}</span>}
+              </p>
+              <button
+                type="button"
+                onClick={() => setEditIdentity(true)}
+                className="text-xs font-semibold text-accent transition-opacity hover:opacity-80"
+              >
+                Modifier
+              </button>
+            </div>
+          ) : (
+            <div className="mt-5 grid gap-5 sm:grid-cols-2">
+              <Field label="Nom complet" required>
+                <input
+                  required
+                  value={form.auteur}
+                  onChange={update("auteur")}
+                  maxLength={200}
+                  className="input"
+                  placeholder="Marie Dupont"
+                />
+              </Field>
+              <Field label="Entreprise">
+                <input
+                  value={form.entreprise}
+                  onChange={update("entreprise")}
+                  maxLength={200}
+                  className="input"
+                  placeholder="Votre société"
+                />
+              </Field>
+            </div>
+          )}
+
+          {/* Détails facultatifs repliés : poste + email */}
+          <div className="mt-4">
+            {!showExtra ? (
+              <button
+                type="button"
+                onClick={() => setShowExtra(true)}
+                className="text-sm font-medium text-muted transition-colors hover:text-accent"
+              >
+                + Ajouter mon poste ou mon email <span className="text-muted-soft">(facultatif)</span>
+              </button>
+            ) : (
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field label="Poste">
+                  <input
+                    value={form.poste}
+                    onChange={update("poste")}
+                    maxLength={200}
+                    className="input"
+                    placeholder="Directrice Générale"
+                  />
+                </Field>
+                <Field label="Email (privé, jamais publié)">
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={update("email")}
+                    className="input"
+                    placeholder="marie@entreprise.com"
+                  />
+                </Field>
+              </div>
+            )}
+          </div>
+
+          {/* Contexte — uniquement en accès libre (jamais via invitation/événement) */}
+          {!eventInfo && !tokenParam && (
+            <div className="mt-5 grid gap-5 sm:grid-cols-2">
+              <Field label="À quel sujet ?">
+                <select value={form.marque} onChange={update("marque")} className="input">
+                  <option value="insuffle">Conseil & accompagnement (Insuffle)</option>
+                  <option value="academie">Formation (Insuffle Académie)</option>
+                </select>
+              </Field>
+              {!typeParam && allTypes.length > 0 && (
+                <Field label="Type de témoignage">
+                  <select
+                    value={selectedType}
+                    onChange={(e) => {
+                      setSelectedType(e.target.value);
+                      const found = allTypes.find((t) => t.id === e.target.value);
+                      setTypeInfo(found || null);
+                      setChampsValues({});
+                    }}
+                    className="input"
+                  >
+                    <option value="">— Général —</option>
+                    {allTypes.map((t) => (
+                      <option key={t.id} value={t.id}>{t.label}</option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+            </div>
+          )}
+
+          {/* Questions spécifiques : visibles si obligatoires, sinon sur demande */}
+          {typeInfo && typeInfo.champs.length > 0 && (
+            questionsVisibles ? (
+              <div className="mt-8 space-y-5 border-t border-line pt-8">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-soft">
+                    Pour aller plus loin (facultatif)
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowQuestions(false)}
+                    className="text-xs font-medium text-muted transition-colors hover:text-accent"
+                  >
+                    Réduire
+                  </button>
+                </div>
+                {typeInfo.champs.map((champ) => (
+                  <ChampField
+                    key={champ.id}
+                    champ={champ}
+                    noteStyle={noteStyle}
+                    value={champsValues[champ.id]}
+                    onChange={(val) => updateChamp(champ.id, val)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="mt-6 border-t border-line pt-5">
+                <button
+                  type="button"
+                  onClick={() => setShowQuestions(true)}
+                  className="text-sm font-medium text-muted transition-colors hover:text-accent"
+                >
+                  + Répondre à {typeInfo.champs.length} question{typeInfo.champs.length > 1 ? "s" : ""} bonus <span className="text-muted-soft">(facultatif)</span>
+                </button>
+              </div>
+            )
+          )}
 
           {status === "error" && (
             <p className="mt-4 rounded-xl bg-red-500/20 px-4 py-3 text-sm font-medium text-red-300">

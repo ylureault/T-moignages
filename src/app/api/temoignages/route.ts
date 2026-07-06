@@ -25,7 +25,12 @@ export async function GET(request: NextRequest) {
 
   const admin = isAdmin(request);
   if (!admin) {
-    results = results.filter((t) => t.publie !== false).map(stripPrivateFields);
+    // Public : jamais d'archivés ni de non-publiés, champs privés retirés.
+    results = results.filter((t) => t.publie !== false && t.archive !== true).map(stripPrivateFields);
+  } else {
+    // Admin : les archivés sont masqués par défaut, visibles avec ?archives=1.
+    const withArchives = request.nextUrl.searchParams.get("archives") === "1";
+    results = results.filter((t) => (withArchives ? t.archive === true : t.archive !== true));
   }
 
   const type = searchParams.get("type");
