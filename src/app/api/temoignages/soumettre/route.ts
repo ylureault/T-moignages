@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTemoignages, saveTemoignages, getTypes, getEvenements, generateId } from "@/lib/db";
-import { sendEmail, escapeHtml } from "@/lib/brevo";
-import type { Temoignage } from "@/types";
+import { getTemoignages, saveTemoignages, getTypes, getEvenements, getInvitations, getCampagnes, patchInvitations, generateId } from "@/lib/db";
+import { sendEmail, escapeHtml, getNotificationEmail } from "@/lib/brevo";
+import { baseUrlDepuisRequete } from "@/lib/campagnes";
+import type { Temoignage, Evenement, TypeTemoignage } from "@/types";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Soumission PUBLIQUE d'un témoignage (formulaire client).
  * Enregistre le témoignage en base comme NON PUBLIÉ (publie: false) pour
- * modération par l'admin. Envoie aussi une notification email si configuré
- * (mais n'échoue pas si l'email n'est pas disponible).
+ * modération par l'admin, le rattache à son invitation (lien unique marqué
+ * « répondu » côté serveur) et notifie contact@insuffle.com (ou CONTACT_EMAIL)
+ * par email — sans jamais faire échouer la soumission si l'email échoue.
  * Protégé par le rate limiting global du middleware.
  */
 export async function POST(request: NextRequest) {
@@ -58,30 +60,46 @@ export async function POST(request: NextRequest) {
   const s = (v: unknown, max = 200) =>
     typeof v === "string" ? v.trim().slice(0, max) : "";
 
-  const marque = body.marque === "academie" ? "academie" : "insuffle";
+  let marque: "insuffle" | "academie" = body.marque === "academie" ? "academie" : "insuffle";
 
   // Détermine le type : soit fourni, soit déduit de l'événement.
   let typeId = s(body.type, 100);
   let evenementId = s(body.evenementId, 100);
 
-  // Valide l'événement et récupère son type/marque si fourni.
+  // Lien unique (invitation / campagne) : la source de vérité pour
+  // l'événement, le type et la marque.
+  const invitationId = s(body.invitationId, 64);
+  const invitation = invitationId
+    ? (await getInvitations()).find((i) => i.id === invitationId)
+    : undefined;
+  if (invitation) {
+    if (invitation.evenementId) evenementId = invitation.evenementId;
+    if (invitation.type && !typeId) typeId = invitation.type;
+    marque = invitation.marque;
+  }
+
+  // Valide l'événement et récupère son type si fourni.
+  let evt: Evenement | undefined;
   if (evenementId) {
     const evenements = await getEvenements();
-    const evt = evenements.find((e) => e.id === evenementId);
-    if (!evt || !evt.actif) {
-      // Événement inexistant ou clôturé : on ignore le lien mais on accepte le témoignage.
+    evt = evenements.find((e) => e.id === evenementId);
+    // Un événement clôturé n'accepte plus le lien public, mais un lien
+    // personnel (invitation) reste valable.
+    const viaInvitation = invitation?.evenementId === evenementId;
+    if (!evt || (!evt.actif && !viaInvitation)) {
       evenementId = "";
+      evt = undefined;
     } else {
       if (!typeId) typeId = evt.typeId;
     }
   }
 
   // Valide le type s'il est fourni.
+  let typeInfo: TypeTemoignage | undefined;
   if (typeId) {
     const types = await getTypes();
-    if (!types.some((t) => t.id === typeId)) {
-      typeId = "";
-    }
+    typeInfo = types.find((t) => t.id === typeId);
+    if (!typeInfo) typeId = "";
   }
 
   // Nettoie les champs personnalisés.
@@ -119,6 +137,10 @@ export async function POST(request: NextRequest) {
     publie: false, // En attente de modération : invisible côté public.
   };
   if (evenementId) nouveau.evenementId = evenementId;
+  if (invitation) {
+    nouveau.invitationId = invitation.id;
+    if (invitation.campagneId) nouveau.campagneId = invitation.campagneId;
+  }
   if (champsPersonnalises) nouveau.champsPersonnalises = champsPersonnalises;
   if (email) {
     // On stocke l'email dans les champs personnalisés pour que l'admin puisse recontacter.
@@ -137,39 +159,65 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Notification email best-effort (n'impacte jamais le succès).
-  const destinataire = process.env.CONTACT_EMAIL;
-  if (destinataire) {
-    const f = (v: unknown) => (typeof v === "string" ? escapeHtml(v.trim()) : "");
+  // Le lien unique est marqué « répondu » côté serveur : le suivi des
+  // campagnes et les relances automatiques ne dépendent pas du navigateur.
+  if (invitation && !invitation.used) {
+    try {
+      await patchInvitations(new Map([[invitation.id, { used: true, usedAt: new Date().toISOString() }]]));
+    } catch (e) {
+      console.error("[soumettre] marquage de l'invitation impossible :", e);
+    }
+  }
+
+  // Notification email (attendue, bornée dans le temps, jamais bloquante).
+  try {
+    const campagneNom = invitation?.campagneId
+      ? (await getCampagnes()).find((c) => c.id === invitation.campagneId)?.nom
+      : undefined;
+    const lienAdmin = `${baseUrlDepuisRequete(request)}/admin`;
+    const ligne = (label: string, v?: string) =>
+      v ? `<tr><td style="padding:4px 12px 4px 0;color:#64748b">${label}</td><td style="padding:4px 0"><strong>${escapeHtml(v)}</strong></td></tr>` : "";
     let champsHtml = "";
     if (champsPersonnalises) {
-      champsHtml = "<h3>Réponses personnalisées</h3>" +
-        Object.entries(champsPersonnalises)
-          .filter(([k]) => k !== "_email")
-          .map(([key, val]) => `<p><strong>${escapeHtml(key)} :</strong> ${escapeHtml(String(val))}</p>`)
-          .join("");
+      const libelles = Object.fromEntries((typeInfo?.champs || []).map((c) => [c.id, c.label]));
+      const lignes = Object.entries(champsPersonnalises)
+        .filter(([k]) => !k.startsWith("_"))
+        .map(([key, val]) => ligne(libelles[key] || key, typeof val === "boolean" ? (val ? "Oui" : "Non") : String(val)))
+        .join("");
+      if (lignes) champsHtml = `<h3 style="margin:20px 0 8px">Réponses complémentaires</h3><table>${lignes}</table>`;
     }
     const html = `
-      <h2>Nouveau témoignage à modérer</h2>
-      <p>Connectez-vous à l'administration pour le valider et le publier.</p>
-      <p><strong>Note :</strong> ${"★".repeat(note)}${"☆".repeat(5 - note)} (${note}/5)</p>
-      <p><strong>Auteur :</strong> ${escapeHtml(auteur)}</p>
-      <p><strong>Poste :</strong> ${f(body.poste)}</p>
-      <p><strong>Entreprise :</strong> ${f(body.entreprise)}</p>
-      <p><strong>Email :</strong> ${escapeHtml(email)}</p>
-      <p><strong>Marque :</strong> ${marque}</p>
-      ${typeId ? `<p><strong>Type :</strong> ${escapeHtml(typeId)}</p>` : ""}
-      ${evenementId ? `<p><strong>Événement :</strong> ${escapeHtml(evenementId)}</p>` : ""}
-      <hr/>
-      <p>${escapeHtml(contenu).replace(/\n/g, "<br/>")}</p>
-      ${champsHtml}
-    `;
-    sendEmail({
-      to: destinataire,
-      subject: `[Témoignage] Proposition de ${auteur}`,
-      html,
-      replyTo: email || undefined,
-    }).catch(() => {});
+      <div style="font-family:Arial,Helvetica,sans-serif;color:#1e293b;max-width:600px">
+        <h2 style="margin:0 0 4px">Nouveau témoignage de ${escapeHtml(auteur)}</h2>
+        <p style="margin:0 0 16px;font-size:22px;color:#eab308">${"★".repeat(note)}${"☆".repeat(5 - note)} <span style="color:#1e293b;font-size:15px">(${note}/5)</span></p>
+        <blockquote style="margin:0 0 16px;padding:12px 16px;border-left:4px solid #eab308;background:#f8fafc">${escapeHtml(contenu).replace(/\n/g, "<br/>")}</blockquote>
+        <table>
+          ${ligne("Entreprise", s(body.entreprise))}
+          ${ligne("Poste", s(body.poste))}
+          ${ligne("Email", email)}
+          ${ligne("Événement", evt?.nom)}
+          ${ligne("Intervenant(s)", evt?.animateurs?.join(", "))}
+          ${ligne("Campagne", campagneNom)}
+          ${ligne("Formulaire", typeInfo?.label)}
+          ${ligne("Marque", marque === "academie" ? "Insuffle Académie" : "Insuffle")}
+        </table>
+        ${champsHtml}
+        <p style="margin:24px 0"><a href="${lienAdmin}" style="background:#1f3a8b;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Modérer et publier</a></p>
+        <p style="color:#64748b;font-size:13px">Ce témoignage est en attente de validation : il n'est pas encore visible publiquement.</p>
+      </div>`;
+    const r = await Promise.race([
+      sendEmail({
+        to: getNotificationEmail(),
+        subject: `[Témoignage ${note}/5] ${auteur}${evt ? ` — ${evt.nom}` : ""}`,
+        html,
+        replyTo: email || undefined,
+      }),
+      new Promise<{ success: false; error: string }>((res) =>
+        setTimeout(() => res({ success: false, error: "délai dépassé" }), 8000)),
+    ]);
+    if (!r.success) console.error(`[soumettre] notification non envoyée à ${getNotificationEmail()} : ${r.error}`);
+  } catch (e) {
+    console.error("[soumettre] notification impossible :", e);
   }
 
   return NextResponse.json({

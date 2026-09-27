@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getInvitations, saveInvitations } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { getInvitations, saveInvitations, patchInvitations } from "@/lib/db";
+import { requireAuth, isAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
@@ -19,6 +19,11 @@ export async function GET(
     );
   }
 
+  // Première ouverture du lien par le client (suivi des campagnes).
+  if (!inv.ouverteAt && !inv.used && !isAdmin(request)) {
+    patchInvitations(new Map([[inv.id, { ouverteAt: new Date().toISOString() }]])).catch(() => {});
+  }
+
   return NextResponse.json({
     success: true,
     data: {
@@ -30,6 +35,7 @@ export async function GET(
       marque: inv.marque,
       message: inv.message,
       used: inv.used,
+      ...(inv.evenementId ? { evenementId: inv.evenementId } : {}),
     },
   });
 }

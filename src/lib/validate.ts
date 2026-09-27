@@ -1,4 +1,4 @@
-import type { Temoignage, TypeTemoignage, Evenement, Invitation, ModeleEmail } from "@/types";
+import type { Temoignage, TypeTemoignage, Evenement, Invitation, ModeleEmail, Campagne } from "@/types";
 
 const VALID_SOURCES = ["google", "trustpilot", "linkedin", "site", "autre"];
 const VALID_MARQUES = ["insuffle", "academie"];
@@ -81,6 +81,8 @@ export function validateTemoignage(raw: unknown): Result<Temoignage> {
       : {}),
     ...(isString(o.evenementId) ? { evenementId: o.evenementId } : {}),
     ...(isString(o.animateur) && o.animateur.length <= 200 ? { animateur: o.animateur } : {}),
+    ...(isString(o.invitationId) && o.invitationId.length <= 64 ? { invitationId: o.invitationId } : {}),
+    ...(isString(o.campagneId) && o.campagneId.length <= 64 ? { campagneId: o.campagneId } : {}),
     ...(o.champsPersonnalises && typeof o.champsPersonnalises === "object"
       ? { champsPersonnalises: o.champsPersonnalises as Record<string, unknown> }
       : {}),
@@ -171,6 +173,44 @@ export function validateInvitation(raw: unknown): Result<Invitation> {
     ...(isString(o.usedAt) ? { usedAt: o.usedAt } : {}),
     ...(isString(o.envoyeeAt) ? { envoyeeAt: o.envoyeeAt } : {}),
     ...(isString(o.relanceAt) ? { relanceAt: o.relanceAt } : {}),
+    ...(typeof o.relances === "number" && o.relances >= 0 ? { relances: Math.floor(o.relances) } : {}),
+    ...(isString(o.ouverteAt) ? { ouverteAt: o.ouverteAt } : {}),
+    ...(isString(o.envoiErreur) ? { envoiErreur: o.envoiErreur.slice(0, 500) } : {}),
+    ...(isString(o.campagneId) && o.campagneId.length <= 64 ? { campagneId: o.campagneId } : {}),
+  };
+  return { ok: true, value };
+}
+
+/** Valide une campagne (restauration/fusion). */
+export function validateCampagne(raw: unknown): Result<Campagne> {
+  if (typeof raw !== "object" || raw === null) {
+    return { ok: false, error: "Campagne invalide (objet attendu)" };
+  }
+  const o = raw as Record<string, unknown>;
+  if (!isString(o.id) || o.id.length === 0 || o.id.length > 64) {
+    return { ok: false, error: "id de campagne invalide" };
+  }
+  if (!isString(o.nom) || o.nom.trim().length === 0 || o.nom.length > 200) {
+    return { ok: false, error: "nom de campagne invalide" };
+  }
+  const borne = (v: unknown, min: number, max: number, def: number) =>
+    typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, Math.round(v))) : def;
+  const value: Campagne = {
+    id: o.id,
+    nom: o.nom.trim(),
+    ...(isString(o.evenementId) && o.evenementId ? { evenementId: o.evenementId } : {}),
+    type: isString(o.type) ? o.type.slice(0, 64) : "",
+    marque: (isString(o.marque) && VALID_MARQUES.includes(o.marque) ? o.marque : "insuffle") as Campagne["marque"],
+    ...(isString(o.entreprise) && o.entreprise ? { entreprise: o.entreprise.slice(0, 200) } : {}),
+    ...(isString(o.message) && o.message ? { message: o.message.slice(0, 1000) } : {}),
+    ...(isString(o.modeleInvitationId) && o.modeleInvitationId ? { modeleInvitationId: o.modeleInvitationId } : {}),
+    ...(isString(o.modeleRelanceId) && o.modeleRelanceId ? { modeleRelanceId: o.modeleRelanceId } : {}),
+    relanceAuto: o.relanceAuto === true,
+    relanceDelaiJours: borne(o.relanceDelaiJours, 1, 60, 5),
+    relancesMax: borne(o.relancesMax, 1, 3, 1),
+    ...(isString(o.lienBase) && /^https?:\/\//.test(o.lienBase) ? { lienBase: o.lienBase.slice(0, 300) } : {}),
+    createdAt: isString(o.createdAt) ? o.createdAt : new Date().toISOString(),
+    ...(o.archive === true ? { archive: true } : {}),
   };
   return { ok: true, value };
 }
@@ -212,6 +252,7 @@ export type ValidatedBackup = {
   evenements: Evenement[];
   invitations: Invitation[];
   modeles: ModeleEmail[];
+  campagnes: Campagne[];
 };
 
 /**
@@ -233,11 +274,12 @@ export function validateBackup(raw: unknown): Result<ValidatedBackup> {
   const evenementsRaw = Array.isArray(o.evenements) ? o.evenements : [];
   const invitationsRaw = Array.isArray(o.invitations) ? o.invitations : [];
   const modelesRaw = Array.isArray(o.modeles) ? o.modeles : [];
+  const campagnesRaw = Array.isArray(o.campagnes) ? o.campagnes : [];
 
   // Garde-fous de volume.
   if (o.temoignages.length > 100000 || o.types.length > 1000 ||
       evenementsRaw.length > 10000 || invitationsRaw.length > 100000 ||
-      modelesRaw.length > 1000) {
+      modelesRaw.length > 1000 || campagnesRaw.length > 10000) {
     return { ok: false, error: "Volume de données trop important" };
   }
 
@@ -276,5 +318,12 @@ export function validateBackup(raw: unknown): Result<ValidatedBackup> {
     modeles.push(r.value);
   }
 
-  return { ok: true, value: { temoignages, types, evenements, invitations, modeles } };
+  const campagnes: Campagne[] = [];
+  for (let i = 0; i < campagnesRaw.length; i++) {
+    const r = validateCampagne(campagnesRaw[i]);
+    if (!r.ok) return { ok: false, error: `campagnes[${i}]: ${r.error}` };
+    campagnes.push(r.value);
+  }
+
+  return { ok: true, value: { temoignages, types, evenements, invitations, modeles, campagnes } };
 }

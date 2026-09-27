@@ -24,6 +24,10 @@ export interface Temoignage {
   evenementId?: string;
   /** Intervenant ciblé par le témoignage (⊂ animateurs de l'événement). */
   animateur?: string;
+  /** Invitation (lien unique) par laquelle le témoignage a été donné. */
+  invitationId?: string;
+  /** Campagne d'origine, le cas échéant. */
+  campagneId?: string;
   champsPersonnalises?: Record<string, unknown>;
   publie: boolean;
   /**
@@ -91,12 +95,50 @@ export interface Invitation {
   envoyeeAt?: string;
   /** Date de la dernière relance. */
   relanceAt?: string;
+  /** Nombre de relances envoyées. */
+  relances?: number;
+  /** Première ouverture du lien par le client. */
+  ouverteAt?: string;
+  /** Dernière erreur d'envoi (effacée au prochain envoi réussi). */
+  envoiErreur?: string;
+  /** Campagne à laquelle appartient l'invitation. */
+  campagneId?: string;
+}
+
+/**
+ * Campagne de collecte : un lot de destinataires (une invitation / un lien
+ * unique chacun), envoyé en une fois, avec suivi envoyé → ouvert → répondu
+ * et relance (manuelle groupée ou automatique) des non-répondants.
+ */
+export interface Campagne {
+  id: string;
+  nom: string;
+  /** Événement lié : type, marque, client et intervenants en sont hérités. */
+  evenementId?: string;
+  type: string;
+  marque: "insuffle" | "academie";
+  entreprise?: string;
+  /** Message personnel affiché en haut du formulaire client. */
+  message?: string;
+  modeleInvitationId?: string;
+  modeleRelanceId?: string;
+  /** Relance automatique des non-répondants. */
+  relanceAuto: boolean;
+  /** Délai (jours) après le dernier envoi avant relance automatique. */
+  relanceDelaiJours: number;
+  /** Nombre maximum de relances automatiques par destinataire. */
+  relancesMax: number;
+  /** URL publique de l'application (pour les liens des emails automatiques). */
+  lienBase?: string;
+  createdAt: string;
+  /** Archivée = masquée de la liste, jamais supprimée. */
+  archive?: boolean;
 }
 
 /**
  * Modèle d'email réutilisable pour la collecte de témoignages.
  * Variables disponibles dans sujet et corps : {prenom} {nom} {entreprise}
- * {evenement} {lien} {signature} — résolues au moment de l'envoi.
+ * {evenement} {intervenant} {lien} {signature} — résolues au moment de l'envoi.
  */
 export interface ModeleEmail {
   id: string;

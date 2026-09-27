@@ -29,6 +29,8 @@ export type FullBackup = {
   invitations: unknown[];
   /** Modèles d'email (optionnel : absent des anciens backups). */
   modeles?: unknown[];
+  /** Campagnes (optionnel : absent des anciens backups). */
+  campagnes?: unknown[];
   exportDate: string;
 };
 

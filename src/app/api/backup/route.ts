@@ -47,18 +47,20 @@ export async function POST(request: NextRequest) {
 
   if (mode === "fusion") {
     const added = await mergeBackup(result.value);
-    const total = added.temoignages + added.types + added.evenements + added.invitations + added.modeles;
+    const total = added.temoignages + added.types + added.evenements + added.invitations + added.modeles + added.campagnes;
     return NextResponse.json({
       success: true,
       mode,
       added,
       message: total === 0
         ? "Fusion : rien à ajouter, toutes les données du backup sont déjà présentes"
-        : `Fusion : ${added.temoignages} témoignage(s), ${added.types} type(s), ${added.evenements} événement(s), ${added.invitations} invitation(s), ${added.modeles} modèle(s) ajoutés — aucune donnée existante modifiée`,
+        : `Fusion : ${added.temoignages} témoignage(s), ${added.types} type(s), ${added.evenements} événement(s), ${added.invitations} invitation(s), ${added.modeles} modèle(s), ${added.campagnes} campagne(s) ajoutés — aucune donnée existante modifiée`,
     });
   }
 
-  await restoreBackup(result.value);
+  // Un ancien backup sans campagnes ne doit pas effacer les campagnes actuelles.
+  const avecCampagnes = Array.isArray((body as Record<string, unknown>).campagnes);
+  await restoreBackup({ ...result.value, campagnes: avecCampagnes ? result.value.campagnes : undefined });
 
   return NextResponse.json({
     success: true,

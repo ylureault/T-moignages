@@ -184,6 +184,8 @@ function NouveauTemoignageContent() {
         type: selectedType === "_general" ? undefined : selectedType || undefined,
       };
       if (eventInfo) payload.evenementId = eventInfo.id;
+      // Le serveur rattache le témoignage au lien unique et le marque « répondu ».
+      if (tokenParam) payload.invitationId = tokenParam;
       if (Object.keys(champsValues).length > 0) payload.champsPersonnalises = champsValues;
 
       const res = await fetch("/api/temoignages/soumettre", {
@@ -196,13 +198,6 @@ function NouveauTemoignageContent() {
         setStatus("error");
         setMessage(data.error || "Une erreur est survenue.");
         return;
-      }
-      if (tokenParam) {
-        fetch(`/api/invitations/${tokenParam}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ used: true }),
-        }).catch(() => {});
       }
       if (!shareUrl && eventInfo) {
         setShareUrl(`${window.location.origin}/temoignages/nouveau?event=${eventInfo.id}`);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getInvitations, saveInvitations } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
-import { sendEmail, escapeHtml } from "@/lib/brevo";
+import { sendEmail, texteVersHtml } from "@/lib/brevo";
 
 export const dynamic = "force-dynamic";
 
@@ -51,8 +51,8 @@ export async function POST(
       );
     }
 
-    // Texte brut → HTML sûr (échappé puis retours à la ligne).
-    const html = `<div style="font-family:sans-serif;line-height:1.6;color:#1e293b;white-space:pre-line">${escapeHtml(corps)}</div>`;
+    // Texte brut → HTML sûr (échappé, retours à la ligne, liens cliquables).
+    const html = texteVersHtml(corps);
     const result = await sendEmail({ to: inv.email, subject: sujet, html });
     if (!result.success) {
       // 501 : Brevo non configuré → l'UI propose le fallback mailto/copier.
@@ -66,9 +66,9 @@ export async function POST(
 
   const now = new Date().toISOString();
   if (inv.envoyeeAt) {
-    invitations[index] = { ...inv, relanceAt: now };
+    invitations[index] = { ...inv, relanceAt: now, relances: (inv.relances || 0) + 1, envoiErreur: undefined };
   } else {
-    invitations[index] = { ...inv, envoyeeAt: now };
+    invitations[index] = { ...inv, envoyeeAt: now, envoiErreur: undefined };
   }
   await saveInvitations(invitations);
 

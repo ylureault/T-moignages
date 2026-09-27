@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 import { isRemoteBackupEnabled } from "@/lib/persist";
+import { isEmailConfigured } from "@/lib/brevo";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ export async function GET() {
         donneesEcriture: dataWritable,
         motDePasseAdminConfigure: adminConfigure,
         backupGitHubActif: isRemoteBackupEnabled(),
-        emailConfigure: Boolean(process.env.BREVO_API_KEY && process.env.BREVO_SENDER_EMAIL),
+        emailConfigure: isEmailConfigured(),
       },
       version: process.env.npm_package_version || "1.0.0",
       horodatage: new Date().toISOString(),

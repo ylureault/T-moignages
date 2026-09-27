@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { randomBytes } from "crypto";
-import type { Temoignage, TypeTemoignage, Invitation, Evenement, ModeleEmail } from "@/types";
+import type { Temoignage, TypeTemoignage, Invitation, Evenement, ModeleEmail, Campagne } from "@/types";
 import { backupNow, readLatestLocalSnapshot, readRemoteBackup, type FullBackup } from "./persist";
 
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
@@ -10,6 +10,7 @@ const TYPES_FILE = path.join(DATA_DIR, "types.json");
 const INVITATIONS_FILE = path.join(DATA_DIR, "invitations.json");
 const EVENEMENTS_FILE = path.join(DATA_DIR, "evenements.json");
 const MODELES_FILE = path.join(DATA_DIR, "modeles-email.json");
+const CAMPAGNES_FILE = path.join(DATA_DIR, "campagnes.json");
 
 /**
  * Modèles d'email par défaut, seedés uniquement si le fichier est absent.
@@ -303,6 +304,7 @@ async function maybeRestore(): Promise<void> {
     [EVENEMENTS_FILE, "evenements"],
     [INVITATIONS_FILE, "invitations"],
     [MODELES_FILE, "modeles"],
+    [CAMPAGNES_FILE, "campagnes"],
   ];
 
   const missing = await Promise.all(targets.map(([f]) => fileMissing(f)));
@@ -360,6 +362,13 @@ async function ensureDataDir(): Promise<void> {
     await fs.access(MODELES_FILE);
   } catch {
     await fs.writeFile(MODELES_FILE, JSON.stringify(DEFAULT_MODELES, null, 2), "utf-8");
+  }
+
+  // Campagnes : données utilisateur, jamais de seed.
+  try {
+    await fs.access(CAMPAGNES_FILE);
+  } catch {
+    await fs.writeFile(CAMPAGNES_FILE, "[]", "utf-8");
   }
 
   initialized = true;
@@ -454,22 +463,51 @@ export async function saveModeles(data: ModeleEmail[]): Promise<void> {
   await afterWrite();
 }
 
+export async function getCampagnes(): Promise<Campagne[]> {
+  return readJSON<Campagne[]>(CAMPAGNES_FILE);
+}
+
+export async function saveCampagnes(data: Campagne[]): Promise<void> {
+  await withLock(CAMPAGNES_FILE, () => writeJSON(CAMPAGNES_FILE, data));
+  await afterWrite();
+}
+
+/**
+ * Applique des modifications partielles à des invitations en relisant le
+ * fichier juste avant l'écriture : un envoi groupé long ne peut ainsi jamais
+ * écraser un « répondu » enregistré entre-temps par un client.
+ */
+export async function patchInvitations(patches: Map<string, Partial<Invitation>>): Promise<void> {
+  if (patches.size === 0) return;
+  await withLock(INVITATIONS_FILE, async () => {
+    const fresh = await readJSON<Invitation[]>(INVITATIONS_FILE);
+    for (let i = 0; i < fresh.length; i++) {
+      const p = patches.get(fresh[i].id);
+      if (p) fresh[i] = { ...fresh[i], ...p };
+    }
+    await writeJSON(INVITATIONS_FILE, fresh);
+  });
+  await afterWrite();
+}
+
 export async function getFullBackup(): Promise<{
   temoignages: Temoignage[];
   types: TypeTemoignage[];
   evenements: Evenement[];
   invitations: Invitation[];
   modeles: ModeleEmail[];
+  campagnes: Campagne[];
   exportDate: string;
 }> {
-  const [temoignages, types, evenements, invitations, modeles] = await Promise.all([
+  const [temoignages, types, evenements, invitations, modeles, campagnes] = await Promise.all([
     getTemoignages(),
     getTypes(),
     getEvenements(),
     getInvitations(),
     getModeles(),
+    getCampagnes(),
   ]);
-  return { temoignages, types, evenements, invitations, modeles, exportDate: new Date().toISOString() };
+  return { temoignages, types, evenements, invitations, modeles, campagnes, exportDate: new Date().toISOString() };
 }
 
 export async function restoreBackup(backup: {
@@ -478,6 +516,7 @@ export async function restoreBackup(backup: {
   evenements?: Evenement[];
   invitations?: Invitation[];
   modeles?: ModeleEmail[];
+  campagnes?: Campagne[];
 }): Promise<void> {
   const ops = [
     saveTemoignages(backup.temoignages),
@@ -486,6 +525,7 @@ export async function restoreBackup(backup: {
   if (backup.evenements) ops.push(saveEvenements(backup.evenements));
   if (backup.invitations) ops.push(saveInvitations(backup.invitations));
   if (backup.modeles && backup.modeles.length > 0) ops.push(saveModeles(backup.modeles));
+  if (backup.campagnes) ops.push(saveCampagnes(backup.campagnes));
   await Promise.all(ops);
 }
 
@@ -502,19 +542,21 @@ export async function mergeBackup(backup: {
   evenements?: Evenement[];
   invitations?: Invitation[];
   modeles?: ModeleEmail[];
-}): Promise<{ temoignages: number; types: number; evenements: number; invitations: number; modeles: number }> {
+  campagnes?: Campagne[];
+}): Promise<{ temoignages: number; types: number; evenements: number; invitations: number; modeles: number; campagnes: number }> {
   function mergeById<T extends { id: string }>(existants: T[], entrants: T[]): { merged: T[]; added: number } {
     const ids = new Set(existants.map((e) => e.id));
     const nouveaux = entrants.filter((e) => !ids.has(e.id));
     return { merged: [...existants, ...nouveaux], added: nouveaux.length };
   }
 
-  const [temoignages, types, evenements, invitations, modeles] = await Promise.all([
+  const [temoignages, types, evenements, invitations, modeles, campagnes] = await Promise.all([
     getTemoignages(),
     getTypes(),
     getEvenements(),
     getInvitations(),
     getModeles(),
+    getCampagnes(),
   ]);
 
   const mT = mergeById(temoignages, backup.temoignages);
@@ -522,6 +564,7 @@ export async function mergeBackup(backup: {
   const mE = mergeById(evenements, backup.evenements ?? []);
   const mI = mergeById(invitations, backup.invitations ?? []);
   const mM = mergeById(modeles, backup.modeles ?? []);
+  const mC = mergeById(campagnes, backup.campagnes ?? []);
 
   const ops: Promise<void>[] = [];
   if (mT.added > 0) ops.push(saveTemoignages(mT.merged));
@@ -529,9 +572,10 @@ export async function mergeBackup(backup: {
   if (mE.added > 0) ops.push(saveEvenements(mE.merged));
   if (mI.added > 0) ops.push(saveInvitations(mI.merged));
   if (mM.added > 0) ops.push(saveModeles(mM.merged));
+  if (mC.added > 0) ops.push(saveCampagnes(mC.merged));
   await Promise.all(ops);
 
-  return { temoignages: mT.added, types: mY.added, evenements: mE.added, invitations: mI.added, modeles: mM.added };
+  return { temoignages: mT.added, types: mY.added, evenements: mE.added, invitations: mI.added, modeles: mM.added, campagnes: mC.added };
 }
 
 export function generateId(): string {

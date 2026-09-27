@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendEmail, escapeHtml } from "@/lib/brevo";
+import { sendEmail, escapeHtml, getNotificationEmail } from "@/lib/brevo";
 
 export const dynamic = "force-dynamic";
 
@@ -32,13 +32,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const destinataire = process.env.CONTACT_EMAIL;
-  if (!destinataire) {
-    return NextResponse.json(
-      { success: false, error: "Email de contact non configuré sur le serveur" },
-      { status: 500 }
-    );
-  }
+  const destinataire = getNotificationEmail();
 
   // Toutes les valeurs utilisateur sont échappées avant insertion HTML.
   const nom = escapeHtml(body.nom);

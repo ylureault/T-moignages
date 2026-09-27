@@ -51,6 +51,8 @@ data/                       # GITIGNORED — données live, JAMAIS dans le repo
   types.json
   evenements.json
   invitations.json
+  modeles-email.json
+  campagnes.json
   backups/                  # Snapshots automatiques (30 max + latest.json)
 public/uploads/             # Images uploadées (banners)
 ```
@@ -68,11 +70,13 @@ SESSION_SECRET=                  # Si absent, utilise ADMIN_PASSWORD comme secre
                                  # Définir pour garder les sessions valides si on
                                  # change le mot de passe. Générer : openssl rand -hex 32
 
-# OPTIONNEL — Email (Brevo/Sendinblue)
+# OPTIONNEL — Email (Brevo/Sendinblue) : notifications + campagnes
 BREVO_API_KEY=
-BREVO_SENDER_EMAIL=
+BREVO_SENDER_EMAIL=              # Domaine authentifié dans Brevo (SPF/DKIM)
 BREVO_SENDER_NAME=Insuffle
-CONTACT_EMAIL=                   # Destinataire des notifications
+CONTACT_EMAIL=                   # Notifications — défaut : contact@insuffle.com
+PUBLIC_URL=                      # URL publique (liens des emails) — déduite sinon
+CAMPAGNES_RELANCE_AUTO=          # "off" pour couper la relance automatique
 
 # OPTIONNEL — Backup Git distant (persistance sur FS éphémère)
 BACKUP_GITHUB_TOKEN=             # Token avec contents:write sur le repo
@@ -82,6 +86,7 @@ BACKUP_GITHUB_PATH=backups/data.json
 
 # INTERNE — Tests uniquement
 # DATA_DIR=/tmp/test-data        # Isoler les tests du /data/ réel
+# BREVO_API_URL=http://127.0.0.1:4599/smtp  # Faux Brevo local (tests d'envoi)
 ```
 
 ## Commandes
@@ -222,7 +227,12 @@ Le thème est appliqué automatiquement selon le champ `marque` de l'événement
 - Écritures atomiques (write → rename) + verrou anti-concurrence
 - Upload : validation magic bytes, SVG bloqué, noms crypto (randomBytes)
 - Champs privés (`_email`, etc.) : préfixe `_` = strippé des réponses publiques
-- Headers de sécurité dans le middleware (CSP, HSTS, X-Frame-Options, etc.)
+- Headers de sécurité dans le middleware (CSP, HSTS, X-Frame-Options, etc.).
+  CSP : Google Analytics (googletagmanager / google-analytics), Google Fonts
+  (Poppins/Outfit), images `https:` (bannières/avatars externes)
+- Limite de débit par IP : `X-Real-IP` (posé par le proxy), sinon dernière entrée
+  de `X-Forwarded-For` — la première est falsifiable par le client
+- **Google Analytics 4** (`G-W57H67TD3N`) chargé dans `src/app/layout.tsx` via `next/script`
 - `.env*` ignoré par git
 
 ## Modèle de données (src/types/index.ts)
@@ -236,7 +246,41 @@ Le thème est appliqué automatiquement selon le champ `marque` de l'événement
 - **Temoignage** : réponse client avec note, texte, `publie: boolean`, `champsPersonnalises`,
   `animateur?: string` (intervenant ciblé — **l'admin l'attribue**, le client ne choisit pas)
 - **ModeleEmail** : message type (invitation/relance/remerciement) avec variables
-  `{prenom} {nom} {entreprise} {evenement} {lien} {signature}` — 5 modèles seedés
+  `{prenom} {nom} {entreprise} {evenement} {intervenant} {lien} {signature}` — 5 modèles seedés
+  (résolution partagée client/serveur : `src/lib/modeles.ts`)
+- **Campagne** : lot de destinataires (une Invitation chacun, `campagneId`) hérité
+  d'un événement ou libre ; modèles d'invitation/relance, relance auto (délai, max).
+  Invitation : `ouverteAt`, `relances`, `envoiErreur`. Témoignage : `invitationId`, `campagneId`.
+
+## Campagnes de témoignages (vue admin « Campagnes »)
+
+- **Création** : depuis la vue ou le bouton « Campagne » d'un événement. Destinataires
+  collés (`src/lib/destinataires.ts`) : `email`, `Nom <email>`, `Nom; email; Entreprise`,
+  colonnes Excel (tabulations), nom seul (lien à transmettre soi-même). En-tête sauté,
+  doublons retirés, ≤ 1000. Rien n'est envoyé à la création.
+- **Envoi groupé côté serveur** (`src/lib/campagnes.ts`, concurrence 4, statuts
+  enregistrés par lots via `patchInvitations` qui relit le fichier : un envoi long
+  n'écrase jamais un « répondu »). Un renvoi ne cible que les non-envoyés/échecs.
+  Ceux qui ont répondu ne reçoivent jamais rien.
+- **Suivi** : contacté → ouvert (1re ouverture du lien, hors admin) → répondu
+  (marqué **côté serveur** à la soumission via `invitationId`), taux de réponse.
+- **Relance** : manuelle groupée (non-répondants) ou **automatique** (`src/instrumentation.ts`
+  → passe horaire, jours ouvrés 9h–18h Paris, après N jours, max 1–3).
+  `POST /api/campagnes/relances` lance une passe immédiate.
+- **Sans Brevo** : export CSV (`;`, UTF-8 BOM, prénom/nom/email/lien/statut) pour un
+  publipostage, puis « Marquer comme contactés » pour activer le suivi des relances.
+- API (admin) : `GET/POST /api/campagnes`, `GET/PUT /api/campagnes/[id]` (réglages,
+  ajout de destinataires, archive), `POST /api/campagnes/[id]/envoyer`,
+  `GET /api/campagnes/[id]/export`. Campagnes incluses dans backups/fusion.
+
+## Notifications
+
+- Chaque témoignage soumis est notifié à `CONTACT_EMAIL` (défaut **contact@insuffle.com**) :
+  note, texte, événement, intervenants, campagne, réponses, bouton « Modérer et publier »,
+  « répondre à » = email du client. Envoi attendu (8 s max), jamais bloquant, échecs loggés.
+- Tableau de bord : bandeau « N à modérer », état des notifications + bouton
+  « Envoyer un email de test » (`GET/POST /api/notifications`).
+- Requiert `BREVO_API_KEY` + `BREVO_SENDER_EMAIL` (sinon rien ne part — l'admin le signale).
 
 ## Collecte auprès des clients
 
@@ -269,7 +313,7 @@ Le thème est appliqué automatiquement selon le champ `marque` de l'événement
 
 ## API publique
 
-- `GET /api/public/temoignages` — feed JSON (CORS *), filtres : marque, type, event, note, limit, anonyme
+- `GET /api/public/temoignages` — feed JSON (CORS *), filtres : marque, type, event, animateur, note, limit, anonyme
 - `POST /api/temoignages/soumettre` — soumission sans auth (sauvé comme non-publié)
 
 ## Widget embarquable & partage

@@ -6,10 +6,16 @@ const WINDOW_MS = 60_000; // 1 minute
 const MAX_REQUESTS = 60; // par IP par fenêtre
 const buckets = new Map<string, { count: number; reset: number }>();
 
+// X-Real-IP est posé par le reverse proxy (nginx : $remote_addr), le client
+// ne peut pas le falsifier. À défaut, on prend la DERNIÈRE entrée de
+// X-Forwarded-For (ajoutée par le proxy) : la première est fournie par le
+// client et permettrait de contourner la limite en changeant de valeur.
 function getClientIp(request: NextRequest): string {
+  const real = request.headers.get("x-real-ip");
+  if (real) return real.trim();
   const fwd = request.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
-  return request.headers.get("x-real-ip") ?? "unknown";
+  if (fwd) return fwd.split(",").pop()!.trim();
+  return "unknown";
 }
 
 function isRateLimited(ip: string): boolean {
@@ -49,9 +55,14 @@ function securityHeaders(response: NextResponse): NextResponse {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "img-src 'self' data: blob:",
-      "style-src 'self' 'unsafe-inline'",
-      "script-src 'self' 'unsafe-inline'",
+      // https: pour les bannières/avatars hébergés ailleurs (URL externe).
+      "img-src 'self' data: blob: https:",
+      // Polices de marque (Poppins, Outfit) servies par Google Fonts.
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      // Google Analytics (gtag.js) : script + envoi des mesures.
+      "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",
+      "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

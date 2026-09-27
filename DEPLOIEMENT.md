@@ -28,7 +28,7 @@ soit accessible en HTTPS (idéalement `temoignages.insuffle.com`), avec :
 - Restaurer un backup se fait par défaut en **fusion** (rien d'existant n'est
   modifié ni supprimé) — le remplacement intégral est explicite (`?mode=remplacer`).
 
-## À demander à Yoan avant de commencer (4 choses)
+## À demander à Yoan avant de commencer (5 choses)
 
 1. **Où déployer ?** VPS existant (IP + accès SSH) / nouveau VPS / Docker /
    PaaS (Vercel, Railway…). Recommandation : VPS ou Docker, pour la
@@ -40,6 +40,10 @@ soit accessible en HTTPS (idéalement `temoignages.insuffle.com`), avec :
 4. **Un token GitHub pour le backup** : repo privé dédié (ex.
    `ylureault/temoignages-backup`) + fine-grained token limité à ce repo avec
    permission **Contents: Read and write**. (Étapes détaillées plus bas.)
+5. **Brevo (emails)** : la clé API Brevo et l'adresse d'expédition
+   (ex. `temoignages@insuffle.com`, sur le domaine insuffle.com authentifié dans
+   Brevo). Sans cela : pas de notification à contact@insuffle.com, et les
+   campagnes ne peuvent pas envoyer ni relancer (export CSV seulement).
 
 ## Option A — VPS avec systemd + nginx (recommandé)
 
@@ -138,8 +142,27 @@ jamais aux données. Mettre nginx/Caddy devant pour l'HTTPS.
 | `BACKUP_GITHUB_REPO` | avec le token | `owner/repo`, ex. `ylureault/temoignages-backup` |
 | `BACKUP_GITHUB_BRANCH` | non | défaut `main` |
 | `BACKUP_GITHUB_PATH` | non | défaut `backups/data.json` |
-| `BREVO_API_KEY` / `BREVO_SENDER_EMAIL` / `BREVO_SENDER_NAME` | non | Notifications email (soumissions) |
-| `CONTACT_EMAIL` | non | Destinataire des notifications |
+| `BREVO_API_KEY` / `BREVO_SENDER_EMAIL` / `BREVO_SENDER_NAME` | **Fortement recommandé** | Notifications + envoi/relance des campagnes. Sans : rien ne part |
+| `CONTACT_EMAIL` | non | Destinataire des notifications — défaut `contact@insuffle.com` |
+| `PUBLIC_URL` | Recommandé | `https://temoignages.insuffle.com` — base des liens envoyés par email (relances auto comprises) |
+| `CAMPAGNES_RELANCE_AUTO` | non | `off` pour couper la relance automatique |
+
+## Configurer l'envoi d'emails (Brevo)
+
+1. Brevo → **Expéditeurs, domaines & IP dédiées → Domaines** : ajouter
+   `insuffle.com` et poser les enregistrements DNS demandés (SPF, DKIM, DMARC).
+   Indispensable pour que les campagnes n'arrivent pas en spam.
+2. **Expéditeurs** : ajouter `temoignages@insuffle.com` (ou l'adresse choisie).
+3. **SMTP & API → Clés API** : générer une clé → `BREVO_API_KEY`.
+4. `.env` : `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME=Insuffle`,
+   `CONTACT_EMAIL=contact@insuffle.com`, `PUBLIC_URL=https://temoignages.insuffle.com`.
+5. Redémarrer → `/api/health` : `emailConfigure: true` → tableau de bord admin :
+   **« Envoyer un email de test »** → vérifier la réception sur contact@insuffle.com.
+
+La **relance automatique** des campagnes tourne dans le processus Node (passe
+horaire, jours ouvrés 9h–18h heure de Paris) : elle nécessite un serveur qui
+reste allumé (VPS/Docker, options A et B). Sur une plateforme serverless, elle
+ne s'exécute pas — relancer à la main depuis la campagne.
 
 ## Configurer le backup GitHub (pas à pas)
 
@@ -181,6 +204,11 @@ Manuellement dans le navigateur :
       s'ouvre et affiche le formulaire client
 - [ ] Soumettre un témoignage de test via ce lien → il apparaît dans l'admin
       (non publié) → le publier → il apparaît dans `/api/public/temoignages`
+- [ ] Tableau de bord → **« Envoyer un email de test »** → reçu sur contact@insuffle.com
+- [ ] Campagne de test (événement → « Campagne », 1 destinataire = une adresse
+      à vous) → Envoyer → email reçu, lien personnel OK → répondre → la campagne
+      affiche « Répondu » et contact@insuffle.com reçoit la notification
+- [ ] Google Analytics : temps réel GA4 (G-W57H67TD3N) → une visite apparaît
 - [ ] Page Sauvegarde : snapshots > 0, backup GitHub « Activé »
 - [ ] Si backup GitHub : un commit est apparu dans le repo de backup
 - [ ] Supprimer l'événement et le témoignage de test **via l'interface admin**
